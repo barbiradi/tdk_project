@@ -72,7 +72,8 @@ my_data_control= my_data_control %>%
 levels(my_data_control$journal)
 
 my_data_control_sliced = my_data_control %>% 
-  slice_sample(n = 527)
+  slice_sample(n = nrow(my_data_ai2)) %>% 
+  arrange(article_date)
 
 my_data_control_sliced %>% 
 ggplot()+
@@ -89,4 +90,98 @@ my_data_ai2 %>%
   geom_smooth()
 
 t.test(my_data_ai2$acceptance_delay, my_data_control_sliced$acceptance_delay)
+t.test(my_data_ai2$publication_delay, my_data_control_sliced$publication_delay)
+
+
+patterns_2 = "\\bUS-election|Clinton|Donald Trump|2016-elections|presidential|president|Hillary|\\b2016 election\\b|2016-election|
+voting|left party|right party|left wing|right wing|left-wing|right-wing|presidential|political|politics"
+threshold_2 = as.Date("2019-12-12")
+
+my_data_elections1 = my_data %>%
+  filter(
+    str_detect(title, regex(patterns_2, ignore_case = TRUE)) |
+      str_detect(keywords, regex(patterns_2, ignore_case = TRUE))
+  ) %>% 
+  mutate(article_date = as.Date(article_date))
+
+my_data_elections2 = my_data%>% 
+  filter(
+    str_detect(title, regex(patterns_2, ignore_case = TRUE)) |
+      str_detect(keywords, regex(patterns_2, ignore_case = TRUE))
+  ) %>% 
+  mutate(
+    article_date = as.Date(article_date)
+  ) %>% 
+  filter(article_date < threshold_2)
+
+my_data_control_elections = my_data %>% 
+  filter(article_date > threshold_2) %>% 
+  semi_join(my_data_elections2, by = "journal") %>% 
+  filter(!( str_detect(title, regex(patterns_2, ignore_case = TRUE)) |
+              str_detect(keywords, regex(patterns_2, ignore_case = TRUE))
+  ))
+
+my_data_elections2 = my_data_elections2 %>% 
+  mutate(journal = factor(journal))
+levels(my_data_ai2$journal)
+
+my_data_control_elections= my_data_control_elections %>% 
+  mutate(journal = factor(journal))
+levels(my_data_control_elections$journal)
+
+my_data_control_elections_sliced = my_data_control_elections %>% 
+  slice_sample(n = nrow(my_data_elections2)) %>% 
+  arrange(article_date)
+
+t.test(my_data_elections2$acceptance_delay, my_data_control_elections_sliced$acceptance_delay)
+t.test(my_data_elections2$publication_delay, my_data_control_elections_sliced$publication_delay)
+
+
+
+
+
+
+patterns_3 = "\\bracism\\b|\\bracial\\b|anti-racism|anti racism|protest|black lives matter|fascism|police brutality"
+threshold_3 = as.Date("2020-05-25")
+threshold_4 = as.Date("2023-01-01")
+my_data_blm1 = my_data %>%
+  filter(
+    str_detect(title, regex(patterns_3, ignore_case = TRUE)) |
+      str_detect(keywords, regex(patterns_3, ignore_case = TRUE))
+  ) %>% 
+  mutate(article_date = as.Date(article_date))
+
+my_data_blm2 = my_data%>% 
+  filter(
+    str_detect(title, regex(patterns_3, ignore_case = TRUE)) |
+      str_detect(keywords, regex(patterns_3, ignore_case = TRUE))
+  ) %>% 
+  mutate(
+    article_date = as.Date(article_date)
+  ) %>% 
+  filter(article_date < threshold_3)
+
+my_data_control_blm = my_data %>% 
+  filter (article_date > threshold_3) %>%
+  filter(article_date < threshold_4) %>% 
+  semi_join(my_data_blm2, by = "journal") %>% 
+  filter(!( str_detect(title, regex(patterns_3, ignore_case = TRUE)) |
+              str_detect(keywords, regex(patterns_3, ignore_case = TRUE))
+  ))
+
+my_data_blm2 = my_data_blm2 %>% 
+  mutate(journal = factor(journal))
+levels(my_data_blm2$journal)
+
+my_data_control_blm= my_data_control_blm %>% 
+  mutate(journal = factor(journal))
+levels(my_data_control_blm$journal)
+
+my_data_control_blm_sliced = my_data_control_blm %>% 
+  slice_sample(n = nrow(my_data_blm2)) %>% 
+  arrange(article_date)
+
+t.test(my_data_blm2$acceptance_delay, my_data_control_blm_sliced$acceptance_delay)
+t.test(my_data_blm2$publication_delay, my_data_control_blm_sliced$publication_delay)
+
 
