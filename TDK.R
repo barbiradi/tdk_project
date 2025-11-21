@@ -1,6 +1,8 @@
 install.packages("tidyverse")
 library(tidyverse)
 library(dplyr)
+install.packages("boot")
+library(boot)
 library(readr)
 install.packages("readxl")
 library(readxl)
@@ -193,6 +195,102 @@ t.test(my_data_blm2$publication_delay, my_data_control_blm_sliced$publication_de
 mean(my_data_control_blm$acceptance_delay)
 mean(my_data_blm2$acceptance_delay)
 
+"Elemzes"
+shapiro.test(my_data_ai2$acceptance_delay)
+shapiro.test(my_data_blm2$äcceptance_delay)
+shapiro.test(my_data_elections2$acceptance_delay)
+
+my_data_ai2 %>%
+  ggplot()+
+  aes(x = acceptance_delay)+
+  geom_histogram(binwidth = 5)
+
+my_data_control %>% 
+  ggplot()+
+  aes(x = acceptance_delay)+
+  geom_histogram()
+
+library(boot)
 
 
+boot_samples_AI <- replicate(1000,
+                          my_data_control[sample(1:nrow(my_data_control), nrow(my_data_ai2), replace = TRUE), ],
+                          simplify = FALSE
+)
+
+
+boot_means_df_AI <- data.frame(
+  bootstrap_id = 1:length(boot_samples_AI),
+  mean_acceptance_delay = sapply(boot_samples_AI, \(df) mean(df$acceptance_delay, na.rm = TRUE))
+)
+ci_AI <- quantile(boot_means_df_AI$mean_acceptance_delay,
+               probs = c(0.025, 0.975))
+ci_AI
+mean(my_data_ai2$acceptance_delay)
+
+boot_samples_election <- replicate(1000,
+                             my_data_control_elections[sample(1:nrow(my_data_control_elections), nrow(my_data_elections2), replace = TRUE), ],
+                             simplify = FALSE
+)
+
+
+boot_means_df_election <- data.frame(
+  bootstrap_id = 1:length(boot_samples_election),
+  mean_acceptance_delay = sapply(boot_samples_election, \(df) mean(df$acceptance_delay, na.rm = TRUE))
+)
+ci_election <- quantile(boot_means_df_election$mean_acceptance_delay,
+                  probs = c(0.025, 0.975))
+ci_election
+mean(my_data_elections2$acceptance_delay)
+
+
+boot_samples_blm <- replicate(1000,
+                             my_data_control_blm[sample(1:nrow(my_data_control_blm), nrow(my_data_blm2), replace = TRUE), ],
+                             simplify = FALSE
+)
+
+
+boot_means_df_blm <- data.frame(
+  bootstrap_id = 1:length(boot_samples_blm),
+  mean_acceptance_delay = sapply(boot_samples_blm, \(df) mean(df$acceptance_delay, na.rm = TRUE))
+)
+ci_blm <- quantile(boot_means_df_blm$mean_acceptance_delay,
+                  probs = c(0.025, 0.975))
+ci_blm
+mean(my_data_blm2$acceptance_delay)
+
+ggplot(boot_means_df_AI, aes(x = mean_acceptance_delay)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = ci_AI, color = "red", linetype = "dashed", linewidth = 1) + # 95% CI
+  geom_vline(xintercept = mean(my_data_ai2$acceptance_delay), color = "darkgreen", linetype = "solid", size = 1.2) +
+  annotate("text", x = mean(my_data_ai2$acceptance_delay), y = max(table(cut(boot_means_df_AI$mean_acceptance_delay, breaks=30))) * 0.9,
+           label = "Sample Mean", color = "darkgreen", angle = 90, vjust = -0.5) +
+  labs(title = "Bootstrap Distribution of Mean Acceptance Delay",
+       x = "Mean Acceptance Delay",
+       y = "Frequency") +
+  theme_minimal()
+
+ggplot(boot_means_df_election, aes(x = mean_acceptance_delay)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = ci_election, color = "red", linetype = "dashed", linewidth = 1) + # 95% CI
+  geom_vline(xintercept = mean(my_data_elections2$acceptance_delay), color = "darkgreen", linetype = "solid", size = 1.2) +
+  annotate("text", x = mean(my_data_elections2$acceptance_delay), y = max(table(cut(boot_means_df_election$mean_acceptance_delay, breaks=30))) * 0.9,
+           label = "Sample Mean", color = "darkgreen", angle = 90, vjust = -0.5) +
+  labs(title = "Bootstrap Distribution of Mean Acceptance Delay",
+       x = "Mean Acceptance Delay",
+       y = "Frequency") +
+  theme_minimal()
+
+ggplot(boot_means_df_blm, aes(x = mean_acceptance_delay)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = ci_blm, color = "red", linetype = "dashed", linewidth = 1) + # 95% CI
+  geom_vline(xintercept = mean(my_data_blm2$acceptance_delay), color = "darkgreen", linetype = "solid", size = 1.2) +
+  annotate("text", x = mean(my_data_elections2$acceptance_delay), y = max(table(cut(boot_means_df_blm$mean_acceptance_delay, breaks=30))) * 0.9,
+           label = "Sample Mean", color = "darkgreen", angle = 90, vjust = -0.5) +
+  labs(title = "Bootstrap Distribution of Mean Acceptance Delay",
+       x = "Mean Acceptance Delay",
+       y = "Frequency") +
+  theme_minimal()
 "?Bayes?"
+as.
+
