@@ -195,4 +195,4 @@ mean(my_data_blm2$acceptance_delay)
 
 
 
-"checkout: the analysis has come to a halt --> implications for tomorrow: possible simulation-approach: either permutation testing or monte-carlo (?Bayes?)"
+"?Bayes?"
