@@ -1,15 +1,11 @@
 
-install.packages("tidyverse")
-install.packages("rstatix")
+
 library(rstatix)
 library(tidyverse)
 library(dplyr)
-install.packages("boot")
 library(boot)
 library(readr)
-install.packages("readxl")
 library(readxl)
-install.packages("stringr")
 library(stringr)
 library(ggplot2)
 my_data = read_excel("C:/ELTE_ST/Additional research activity/TDK/tdk_project/tdk_data_cleaned.xlsx", sheet = 1)
@@ -21,34 +17,34 @@ my_data <- read.csv("tdk_data_cleaned.csv")
 
 
 
-patterns <- "\\bAI\\b|\\bAI-|ChatGPT|OpenAI|Generative AI|\\bLLM\\b|\\bLLMs\\b|Large language models|Chat GPT|GPT-3.5|GPT-4|\\bGPT\\b"
+patterns_AI <- "\\bAI\\b|\\bAI-|ChatGPT|OpenAI|Generative AI|\\bLLM\\b|\\bLLMs\\b|Large language models|Chat GPT|GPT-3.5|GPT-4|\\bGPT\\b"
 
 
 my_data_ai1 = my_data %>%
   filter(
-    str_detect(title, regex(patterns, ignore_case = TRUE)) |
-      str_detect(keywords, regex(patterns, ignore_case = TRUE))
+    str_detect(title, regex(patterns_AI, ignore_case = TRUE)) |
+      str_detect(keywords, regex(patterns_AI, ignore_case = TRUE))
   ) %>% 
   mutate(article_date = as.Date(article_date))
 
 
-threshold <- as.Date("2022-11-30") + median(my_data$acceptance_delay)
+threshold_AI <- as.Date("2022-11-30") + median(my_data$acceptance_delay)
 
 my_data_ai2 = my_data%>% 
   filter(
-    str_detect(title, regex(patterns, ignore_case = TRUE)) |
-      str_detect(keywords, regex(patterns, ignore_case = TRUE))
+    str_detect(title, regex(patterns_AI, ignore_case = TRUE)) |
+      str_detect(keywords, regex(patterns_AI, ignore_case = TRUE))
   ) %>% 
   mutate(
     article_date = as.Date(article_date)
   ) %>% 
-  filter(article_date > threshold)
+  filter(article_date > threshold_AI)
 
 my_data_control_AI = my_data %>% 
-  filter(article_date > threshold) %>% 
+  filter(article_date > threshold_AI) %>% 
   semi_join(my_data_ai2, by = "journal") %>% 
-  filter(!( str_detect(title, regex(patterns, ignore_case = TRUE)) |
-              str_detect(keywords, regex(patterns, ignore_case = TRUE))
+  filter(!( str_detect(title, regex(patterns_AI, ignore_case = TRUE)) |
+              str_detect(keywords, regex(patterns_AI, ignore_case = TRUE))
   ))
   
 my_data_ai2 = my_data_ai2 %>% 
@@ -81,35 +77,35 @@ t.test(my_data_ai2$acceptance_delay, my_data_control_sliced$acceptance_delay)
 t.test(my_data_ai2$publication_delay, my_data_control_sliced$publication_delay)
 
 
-patterns_2 = "\\b2016 election|2016 presidential election|us 2016 election|
+patterns_elections = "\\b2016 election|2016 presidential election|us 2016 election|
 u\\.s\\. 2016 election|2016 us presidential|2016 u\\.s\\. presidential|Donald Trump|left wing|right wing|parties|
 voting|Donald J. Trump|president|presidential|political|politician|American election|United States election|US election"
-threshold_2 = as.Date("2019-12-12")
+threshold_elections = as.Date("2019-12-12")
 
 my_data_elections1 <- my_data %>%
   filter(
-    str_detect(title, regex(patterns_2, ignore_case = TRUE)) |
-      str_detect(keywords, regex(patterns_2, ignore_case = TRUE))
+    str_detect(title, regex(patterns_elections, ignore_case = TRUE)) |
+      str_detect(keywords, regex(patterns_elections, ignore_case = TRUE))
   ) %>% 
   mutate(article_date = as.Date(article_date))
   
 
 my_data_elections2 <- my_data %>% 
   filter(
-    str_detect(title, regex(patterns_2, ignore_case = TRUE)) |
-      str_detect(keywords, regex(patterns_2, ignore_case = TRUE))
+    str_detect(title, regex(patterns_elections, ignore_case = TRUE)) |
+      str_detect(keywords, regex(patterns_elections, ignore_case = TRUE))
   ) %>%
   mutate(article_date = as.Date(article_date)) %>%
-  filter(article_date < threshold_2)
+  filter(article_date < threshold_elections)
   
 
 
 
 my_data_control_elections <- my_data %>%
   mutate(article_date = as.Date(article_date)) %>%
-  filter(article_date < threshold_2) %>%      
+  filter(article_date < threshold_elections) %>%      
   semi_join(my_data_elections2, by = "journal") %>% 
-  filter(!(str_detect(title, regex(patterns_2, ignore_case = TRUE)) |str_detect(keywords, regex(patterns_2, ignore_case = TRUE))))
+  filter(!(str_detect(title, regex(patterns_elections, ignore_case = TRUE)) |str_detect(keywords, regex(patterns_elections, ignore_case = TRUE))))
 
 my_data_elections2 = my_data_elections2 %>% 
   mutate(journal = factor(journal))
@@ -143,8 +139,8 @@ threshold_covid_end <- as.Date("2022-12-31")
 
 my_data_covid2 <- my_data %>%
   filter(
-    str_detect(title,regex(patterns,ignore_case = TRUE)) |
-      str_detect(keywords,regex(patterns,ignore_case = TRUE))
+    str_detect(title,regex(patterns_COVID,ignore_case = TRUE)) |
+      str_detect(keywords,regex(patterns_COVID,ignore_case = TRUE))
   ) %>%
   mutate(
     article_date =as.Date(article_date)
@@ -192,7 +188,7 @@ t.test(my_data_covid2$publication_delay,my_data_control_covid_sliced$publication
 
 
 
-patterns_RUwar <- "Russia-Ukraine war|Russo-Ukrainian war|Russian-Ukrainian conflict|Russian conflict|Ukrainian conflict|Russian invasion|Russian war|Ukrainian war|Russian attack|Russia|Ukraine|Donbas conflict|Donbas war|Donbas|Luhansk|war in Eastern Ukraine|Russian offensive|Ukrainian offensive|Ukraine humanitarian crisis|Crimea invasion"
+patterns_RUwar <- "Russia-Ukraine war|Russo-Ukrainian war|Russian-Ukrainian conflict|Russian conflict|Ukrainian conflict|Russian invasion|Russian war|Ukrainian war|Russian attack|Ukraine|Donbas conflict|Donbas war|Donbas|Luhansk|war in Eastern Ukraine|Russian offensive|Ukrainian offensive|Ukraine humanitarian crisis|Crimea invasion"
 
 my_data_RUwar1 <- my_data %>%
   filter(
@@ -225,8 +221,8 @@ my_data_control_RUwar = my_data %>%
     article_date <= threshold_RUwar_end
   ) %>%
   semi_join(my_data_RUwar2, by= "journal") %>%
-  filter(!(str_detect(title, regex(patterns_2,ignore_case = TRUE)) |
-             str_detect(keywords, regex(patterns_2, ignore_case = TRUE))
+  filter(!(str_detect(title, regex(patterns_RUwar,ignore_case = TRUE)) |
+             str_detect(keywords, regex(patterns_RUwar, ignore_case = TRUE))
   ))
 
 my_data_RUwar2 = my_data_RUwar2 %>%
@@ -332,11 +328,11 @@ boot_samples_RUwar <- replicate(1000,
 )
 
 
-boot_means_df_RUwar <- data.frame(
+boot_means_RUwar <- data.frame(
   bootstrap_id = 1:length(boot_samples_RUwar),
   mean_acceptance_delay = sapply(boot_samples_RUwar, \(df) mean(df$acceptance_delay, na.rm = TRUE))
 )
-ci_RUwar <- quantile(boot_means_df_RUwar$mean_acceptance_delay,
+ci_RUwar <- quantile(boot_means_RUwar$mean_acceptance_delay,
                         probs = c(0.025, 0.975))
 ci_RUwar
 mean(my_data_RUwar2$acceptance_delay)
@@ -382,14 +378,14 @@ ggplot(boot_means_covid_sample, aes(x = mean_acceptance_delay)) +
        y = "Frequency") +
   theme_minimal()
 
-ggplot(boot_means_df_RUwar, aes(x = mean_acceptance_delay)) +
+ggplot(boot_means_RUwar, aes(x = mean_acceptance_delay)) +
   geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
   geom_vline(xintercept = ci_RUwar, color = "red", linetype = "dashed", linewidth = 1) +
   geom_vline(xintercept = mean(my_data_RUwar2$acceptance_delay),
              color = "darkgreen", linetype = "solid", size = 1.2) +
   annotate("text",
            x = mean(my_data_RUwar2$acceptance_delay),
-           y = max(table(cut(boot_means_df_RUwar$mean_acceptance_delay, breaks = 30))) * 0.9,
+           y = max(table(cut(boot_means_RUwar$mean_acceptance_delay, breaks = 30))) * 0.9,
            label = "Sample Mean",
            color = "darkgreen",
            angle = 90,
@@ -448,30 +444,15 @@ date_bounds_RUwar <- my_data_RUwar1 %>%
 date_bounds_RUwar
 
 
+df_ai_articled        <- my_data_ai1        %>% select(article_date) %>% mutate(source = "AI")
+df_elections_articled <- my_data_elections1 %>% select(article_date) %>% mutate(source = "Elections")
+df_covid_articled     <- my_data_covid1     %>% select(article_date) %>% mutate(source = "COVID")
+df_ruwar_articled     <- my_data_RUwar1     %>% select(article_date) %>% mutate(source = "RUwar")
 
+dates_bound <- bind_rows(df_ai_articled, df_elections_articled, df_covid_articled, df_ruwar_articled)
 
-
-# 1. Standardize date formats in each dataframe
-library(dplyr)
-library(ggplot2)
-
-# 1. Keep only article_date and add source
-df_ai        <- my_data_ai2        %>% select(article_date) %>% mutate(source = "AI")
-df_elections <- my_data_elections2 %>% select(article_date) %>% mutate(source = "Elections")
-df_covid     <- my_data_covid2     %>% select(article_date) %>% mutate(source = "COVID")
-df_ruwar     <- my_data_RUwar2     %>% select(article_date) %>% mutate(source = "RUwar")
-
-# 2. Ensure all article_date columns are Date
-df_ai$article_date        <- as.Date(df_ai$article_date)
-df_elections$article_date <- as.Date(df_elections$article_date)
-df_covid$article_date     <- as.Date(df_covid$article_date)
-df_ruwar$article_date     <- as.Date(df_ruwar$article_date)
-
-# 3. Combine datasets
-all_data <- bind_rows(df_ai, df_elections, df_covid, df_ruwar)
-
-# 4. Density plot
-ggplot(all_data, aes(x = as.numeric(article_date), color = source, fill = source)) +
+"Density plot"
+ggplot(dates_bound, aes(x = as.numeric(article_date), color = source, fill = source)) +
   geom_density(alpha = 0.3, na.rm = TRUE) +
   scale_x_continuous(
     name = "Article Date",
@@ -484,34 +465,41 @@ ggplot(all_data, aes(x = as.numeric(article_date), color = source, fill = source
   theme_minimal()
 
 library(dplyr)
-library(ggplot2)
 
-# Combine all_data as before (article_date + source)
-# all_data <- bind_rows(df_ai, df_elections, df_covid, df_ruwar)
+date_bounds_IQR <- function(df, col = "article_date") {
+  numeric_dates <- as.numeric(df[[col]])
+  
+  # Compute Q1 and Q3 in numeric form
+  Q1 <- quantile(numeric_dates, 0.25, na.rm = TRUE)
+  Q3 <- quantile(numeric_dates, 0.75, na.rm = TRUE)
+  IQR_val <- Q3 - Q1
+  
+  # Compute fences in numeric form
+  lower_fence <- Q1 - 1.5 * IQR_val
+  upper_fence <- Q3 + 1.5 * IQR_val
+  
+  # Convert back to Date
+  data.frame(
+    lower_fence = as.Date(lower_fence, origin = "1970-01-01"),
+    Q1 = as.Date(Q1, origin = "1970-01-01"),
+    Q3 = as.Date(Q3, origin = "1970-01-01"),
+    upper_fence = as.Date(upper_fence, origin = "1970-01-01")
+  )
+}
+IQR = as.
+# Compute IQR-based bounds for each dataset
+date_bounds_IQR_ai        <- date_bounds_IQR(df_ai_articled)
+date_bounds_IQR_elections <- date_bounds_IQR(df_elections_articled)
+date_bounds_IQR_covid     <- date_bounds_IQR(df_covid_articled)
+date_bounds_IQR_RUwar     <- date_bounds_IQR(df_ruwar_articled)
 
-# Prepare a data frame of vertical lines from your existing bounds
-vlines <- bind_rows(
-  data.frame(source = "AI",    date = c(date_bounds_AI$lower, date_bounds_AI$upper)),
-  data.frame(source = "Elections", date = c(date_bounds_elections$lower, date_bounds_elections$upper)),
-  data.frame(source = "COVID", date = c(date_bounds_covid$lower, date_bounds_covid$upper)),
-  data.frame(source = "RUwar", date = c(date_bounds_RUwar$lower, date_bounds_RUwar$upper))
-)
+date_bounds_IQR_ai
+date_bounds_IQR_elections
+date_bounds_IQR_covid
+date_bounds_IQR_RUwar
 
-# Density plot with vertical lines for 95% bounds
-ggplot(all_data, aes(x = as.numeric(article_date), color = source, fill = source)) +
-  geom_density(alpha = 0.3, na.rm = TRUE) +
-  geom_vline(
-    data = vlines,
-    aes(xintercept = as.numeric(date), color = source),
-    linetype = "dashed",
-    size = 0.8
-  ) +
-  scale_x_continuous(
-    name = "Article Date",
-    labels = function(x) as.Date(x, origin = "1970-01-01")
-  ) +
-  labs(
-    title = "Density of Article Dates by Dataset with 95% Bounds",
-    y = "Density"
-  ) +
-  theme_minimal()
+
+"A COVID-nál és az AI-nál múködne az IQR/középső 95%-os szűrés, viszont a 
+másik kettő esetben interferencia van a beválogatásnál.
+  1. Az election-nél rengeteg cikk kezd el megjelenni a témában a következő választásoknál --> nézhetnénk azt is
+  2. Az orosz - ukránnál nem tudunk jól szűrni --> ezen keresőszavak alapján 2021 és 2023 vége között hasonló gyakorisággal jönnek a cikkek a témában"
