@@ -13,9 +13,21 @@ my_data <- read.csv("tdk_data_cleaned.csv")
 
 
 
+my_data = my_data %>% 
+  mutate(journal = factor(journal))
+levels(my_data$journal)
 
+sd(my_data$acceptance_delay)
+min(my_data$article_date)
+max(my_data$article_date)
+mean(my_data$acceptance_delay)
+median(my_data$acceptance_delay)
+my_data %>% 
+  ggplot()+
+  aes(x = acceptance_delay)+
+  geom_density()
 
-
+summary()
 
 patterns_AI <- "\\bAI\\b|\\bAI-|ChatGPT|OpenAI|Generative AI|\\bLLM\\b|\\bLLMs\\b|Large language models|Chat GPT|GPT-3.5|GPT-4|\\bGPT\\b"
 
@@ -80,8 +92,8 @@ t.test(my_data_ai2$publication_delay, my_data_control_sliced$publication_delay)
 patterns_elections = "\\b2016 election|2016 presidential election|us 2016 election|
 u\\.s\\. 2016 election|2016 us presidential|2016 u\\.s\\. presidential|Donald Trump|left wing|right wing|parties|
 voting|Donald J. Trump|president|presidential|political|politician|American election|United States election|US election"
-threshold_elections = as.Date("2019-12-12")
-
+threshold_elections = as.Date("2020-01-01")
+threshol_elections_upper = as.Date("2023-12-31")
 my_data_elections1 <- my_data %>%
   filter(
     str_detect(title, regex(patterns_elections, ignore_case = TRUE)) |
@@ -96,14 +108,16 @@ my_data_elections2 <- my_data %>%
       str_detect(keywords, regex(patterns_elections, ignore_case = TRUE))
   ) %>%
   mutate(article_date = as.Date(article_date)) %>%
-  filter(article_date < threshold_elections)
+  filter(article_date > threshold_elections) %>% 
+  filter(article_date < threshol_elections_upper)
   
 
 
 
 my_data_control_elections <- my_data %>%
   mutate(article_date = as.Date(article_date)) %>%
-  filter(article_date < threshold_elections) %>%      
+  filter(article_date > threshold_elections) %>%
+  filter(article_date < threshol_elections_upper) %>% 
   semi_join(my_data_elections2, by = "journal") %>% 
   filter(!(str_detect(title, regex(patterns_elections, ignore_case = TRUE)) |str_detect(keywords, regex(patterns_elections, ignore_case = TRUE))))
 
@@ -188,7 +202,7 @@ t.test(my_data_covid2$publication_delay,my_data_control_covid_sliced$publication
 
 
 
-patterns_RUwar <- "Russia-Ukraine war|Russo-Ukrainian war|Russian-Ukrainian conflict|Russian conflict|Ukrainian conflict|Russian invasion|Russian war|Ukrainian war|Russian attack|Ukraine|Donbas conflict|Donbas war|Donbas|Luhansk|war in Eastern Ukraine|Russian offensive|Ukrainian offensive|Ukraine humanitarian crisis|Crimea invasion"
+patterns_RUwar <- "Ukrainian-Russian|Russia-Ukraine war|Russo-Ukrainian war|Russian-Ukrainian conflict|Russian conflict|Ukrainian conflict|Russian invasion|Russian war|Ukrainian war|Russian attack|Ukraine|Donbas conflict|Donbas war|Donbas|Luhansk|war in Eastern Ukraine|Russian offensive|Ukrainian offensive|Ukraine humanitarian crisis|Crimea invasion"
 
 my_data_RUwar1 <- my_data %>%
   filter(
@@ -255,6 +269,20 @@ t.test(my_data_RUwar2$publication_delay,my_data_control_RUwar_sliced$publication
 "Elemzes"
 shapiro.test(my_data_ai2$acceptance_delay)
 shapiro.test(my_data_elections2$acceptance_delay)
+
+summary(my_data_ai2$acceptance_delay)
+sd(my_data_ai2$acceptance_delay)
+summary(my_data_elections2$acceptance_delay)
+sd(my_data_elections2$acceptance_delay)
+
+summary(my_data_covid2$acceptance_delay)
+sd(my_data_covid2$acceptance_delay)
+
+summary(my_data_RUwar2$acceptance_delay)
+sd(my_data_RUwar2$acceptance_delay)
+
+
+
 
 my_data_ai2 %>%
   ggplot()+
@@ -443,6 +471,8 @@ date_bounds_RUwar <- my_data_RUwar1 %>%
   )
 date_bounds_RUwar
 
+ci_bound = bind_rows(ci_AI, ci_election, ci_covid, ci_RUwar) %>% 
+  add_column(Téma = c("AI", "Választások", "COVID-19", "Orosz-ukrán konfliktus"))
 
 df_ai_articled        <- my_data_ai1        %>% select(article_date) %>% mutate(source = "AI")
 df_elections_articled <- my_data_elections1 %>% select(article_date) %>% mutate(source = "Elections")
