@@ -1,5 +1,5 @@
 
-
+install.packages("rstatix")
 library(rstatix)
 library(tidyverse)
 library(dplyr)
@@ -9,8 +9,11 @@ library(readxl)
 library(stringr)
 library(ggplot2)
 my_data = read_excel("C:/ELTE_ST/Additional research activity/TDK/tdk_project/tdk_data_cleaned.xlsx", sheet = 1)
-my_data <- read.csv("tdk_data_cleaned.csv")
+my_data <- read.csv("tdk_data.csv")
 
+my_data_grouped = my_data %>% 
+  group_by(asjc) %>% 
+  summarise()
 
 
 my_data = my_data %>% 
@@ -54,7 +57,7 @@ my_data_ai2 = my_data%>%
 
 my_data_control_AI = my_data %>% 
   filter(article_date > threshold_AI) %>% 
-  semi_join(my_data_ai2, by = "journal") %>% 
+  semi_join(my_data_ai2, by = "asjc") %>% 
   filter(!( str_detect(title, regex(patterns_AI, ignore_case = TRUE)) |
               str_detect(keywords, regex(patterns_AI, ignore_case = TRUE))
   ))
@@ -108,17 +111,15 @@ my_data_elections2 <- my_data %>%
       str_detect(keywords, regex(patterns_elections, ignore_case = TRUE))
   ) %>%
   mutate(article_date = as.Date(article_date)) %>%
-  filter(article_date > threshold_elections) %>% 
-  filter(article_date < threshol_elections_upper)
+  filter(article_date < threshold_elections)
   
 
 
 
 my_data_control_elections <- my_data %>%
   mutate(article_date = as.Date(article_date)) %>%
-  filter(article_date > threshold_elections) %>%
-  filter(article_date < threshol_elections_upper) %>% 
-  semi_join(my_data_elections2, by = "journal") %>% 
+  filter(article_date < threshold_elections) %>% 
+  semi_join(my_data_elections2, by = "asjc") %>% 
   filter(!(str_detect(title, regex(patterns_elections, ignore_case = TRUE)) |str_detect(keywords, regex(patterns_elections, ignore_case = TRUE))))
 
 my_data_elections2 = my_data_elections2 %>% 
@@ -169,7 +170,7 @@ my_data_control_covid = my_data %>%
     article_date >= threshold_covid_start,
     article_date <= threshold_covid_end
   ) %>%
-  semi_join(my_data_covid2, by= "journal") %>%
+  semi_join(my_data_covid2, by= "asjc") %>%
   filter(!(str_detect(title, regex(patterns_COVID,ignore_case = TRUE)) |
              str_detect(keywords, regex(patterns_COVID, ignore_case = TRUE))
   ))
@@ -234,7 +235,7 @@ my_data_control_RUwar = my_data %>%
     article_date >= threshold_RUwar_start,
     article_date <= threshold_RUwar_end
   ) %>%
-  semi_join(my_data_RUwar2, by= "journal") %>%
+  semi_join(my_data_RUwar2, by= "asjc") %>%
   filter(!(str_detect(title, regex(patterns_RUwar,ignore_case = TRUE)) |
              str_detect(keywords, regex(patterns_RUwar, ignore_case = TRUE))
   ))
@@ -534,8 +535,15 @@ sample_combined = bind_rows(my_data_ai2, my_data_elections2, my_data_covid2, my_
   distinct() %>% 
   arrange(article_date) 
 
+date_bounds_massed = sample_combined %>% 
+  mutate(date_num = as.numeric(article_date)) %>%
+  summarise(
+    lower = as.Date(quantile(date_num, 0.025, na.rm = TRUE), origin = "1970-01-01"),
+    upper = as.Date(quantile(date_num, 0.975, na.rm = TRUE), origin = "1970-01-01")
+  )
+
 control_combined = my_data %>% 
-  semi_join(sample_combined, by = "journal") %>% 
+  semi_join(sample_combined, by = "asjc") %>% 
   filter(!(str_detect(title, regex(patterns_COVID,ignore_case = TRUE)) |
                       str_detect(keywords, regex(patterns_COVID,ignore_case = TRUE))
   )) %>% 
@@ -546,6 +554,7 @@ control_combined = my_data %>%
   filter(!(str_detect(title, regex(patterns_RUwar,ignore_case = TRUE)) |
              str_detect(keywords, regex(patterns_RUwar,ignore_case = TRUE)))) %>% 
   distinct() %>% 
+  
   arrange(article_date)
 
 boot_samples_combined <- replicate(1000,
@@ -580,6 +589,51 @@ ggplot(boot_means_combined, aes(x = mean_acceptance_delay)) +
        y = "Frequency") +
   theme_minimal()
 
+
+sample_combined_nocovid = bind_rows(my_data_ai2, my_data_elections2, my_data_RUwar2)
+
+control_combined_nocovid = my_data %>% 
+  semi_join(sample_combined, by = "asjc") %>% 
+  filter(!(str_detect(title, regex(patterns_AI,ignore_case = TRUE)) |
+             str_detect(keywords, regex(patterns_AI,ignore_case = TRUE)))) %>% 
+  filter(!(str_detect(title, regex(patterns_elections,ignore_case = TRUE)) |
+             str_detect(keywords, regex(patterns_elections,ignore_case = TRUE)))) %>% 
+  filter(!(str_detect(title, regex(patterns_RUwar,ignore_case = TRUE)) |
+             str_detect(keywords, regex(patterns_RUwar,ignore_case = TRUE)))) %>% 
+  distinct() %>% 
+  arrange(article_date)
+
+boot_samples_combined_nocovid <- replicate(1000,
+                                   control_combined_nocovid[sample(1:nrow(control_combined_nocovid), nrow(sample_combined_nocovid), replace = TRUE), ],
+                                   simplify = FALSE
+)
+
+
+boot_means_combined_nocovid <- data.frame(
+  bootstrap_id = 1:length(boot_samples_combined_nocovid),
+  mean_acceptance_delay = sapply(boot_samples_combined_nocovid, \(df) mean(df$acceptance_delay, na.rm = TRUE))
+)
+ci_combined_nocovid <- quantile(boot_means_combined_nocovid$mean_acceptance_delay,
+                        probs = c(0.025, 0.975))
+ci_combined_nocovid
+mean(sample_combined$acceptance_delay)
+
+ggplot(boot_means_combined_nocovid, aes(x = mean_acceptance_delay)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = ci_combined_nocovid, color = "red", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = mean(sample_combined_nocovid$acceptance_delay),
+             color = "darkgreen", linetype = "solid", size = 1.2) +
+  annotate("text",
+           x = mean(sample_combined_nocovid$acceptance_delay),
+           y = max(table(cut(boot_means_combined_nocovid$mean_acceptance_delay, breaks = 30))) * 0.9,
+           label = "Sample Mean",
+           color = "darkgreen",
+           angle = 90,
+           vjust = -0.5) +
+  labs(title = "Bootstrap Distribution of Mean Acceptance Delay (combined)",
+       x = "Mean Acceptance Delay",
+       y = "Frequency") +
+  theme_minimal()
   
 
 "A COVID-nál és az AI-nál múködne az IQR/középső 95%-os szűrés, viszont a 
