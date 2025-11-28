@@ -529,6 +529,59 @@ date_bounds_IQR_covid
 date_bounds_IQR_RUwar
 
 
+"Massed effect"
+sample_combined = bind_rows(my_data_ai2, my_data_elections2, my_data_covid2, my_data_RUwar2) %>% 
+  distinct() %>% 
+  arrange(article_date) 
+
+control_combined = my_data %>% 
+  semi_join(sample_combined, by = "journal") %>% 
+  filter(!(str_detect(title, regex(patterns_COVID,ignore_case = TRUE)) |
+                      str_detect(keywords, regex(patterns_COVID,ignore_case = TRUE))
+  )) %>% 
+  filter(!(str_detect(title, regex(patterns_AI,ignore_case = TRUE)) |
+             str_detect(keywords, regex(patterns_AI,ignore_case = TRUE)))) %>% 
+  filter(!(str_detect(title, regex(patterns_elections,ignore_case = TRUE)) |
+             str_detect(keywords, regex(patterns_elections,ignore_case = TRUE)))) %>% 
+  filter(!(str_detect(title, regex(patterns_RUwar,ignore_case = TRUE)) |
+             str_detect(keywords, regex(patterns_RUwar,ignore_case = TRUE)))) %>% 
+  distinct() %>% 
+  arrange(article_date)
+
+boot_samples_combined <- replicate(1000,
+                                control_combined[sample(1:nrow(control_combined), nrow(sample_combined), replace = TRUE), ],
+                                simplify = FALSE
+)
+
+
+boot_means_combined <- data.frame(
+  bootstrap_id = 1:length(boot_samples_combined),
+  mean_acceptance_delay = sapply(boot_samples_combined, \(df) mean(df$acceptance_delay, na.rm = TRUE))
+)
+ci_combined <- quantile(boot_means_combined$mean_acceptance_delay,
+                     probs = c(0.025, 0.975))
+ci_combined
+mean(sample_combined$acceptance_delay)
+  
+ggplot(boot_means_combined, aes(x = mean_acceptance_delay)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = ci_combined, color = "red", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = mean(sample_combined$acceptance_delay),
+             color = "darkgreen", linetype = "solid", size = 1.2) +
+  annotate("text",
+           x = mean(sample_combined$acceptance_delay),
+           y = max(table(cut(boot_means_combined$mean_acceptance_delay, breaks = 30))) * 0.9,
+           label = "Sample Mean",
+           color = "darkgreen",
+           angle = 90,
+           vjust = -0.5) +
+  labs(title = "Bootstrap Distribution of Mean Acceptance Delay (combined)",
+       x = "Mean Acceptance Delay",
+       y = "Frequency") +
+  theme_minimal()
+
+  
+
 "A COVID-nál és az AI-nál múködne az IQR/középső 95%-os szűrés, viszont a 
 másik kettő esetben interferencia van a beválogatásnál.
   1. Az election-nél rengeteg cikk kezd el megjelenni a témában a következő választásoknál --> nézhetnénk azt is
