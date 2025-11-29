@@ -11,14 +11,12 @@ library(ggplot2)
 my_data = read_excel("C:/ELTE_ST/Additional research activity/TDK/tdk_project/tdk_data_cleaned.xlsx", sheet = 1)
 my_data <- read.csv("tdk_data.csv")
 
+my_data = my_data %>% 
+  mutate(article_date = as.Date(article_date))
+
 my_data_grouped = my_data %>% 
   group_by(asjc) %>% 
   summarise()
-
-
-my_data = my_data %>% 
-  mutate(journal = factor(journal))
-levels(my_data$journal)
 
 sd(my_data$acceptance_delay)
 min(my_data$article_date)
@@ -30,7 +28,6 @@ my_data %>%
   aes(x = acceptance_delay)+
   geom_density()
 
-summary()
 
 patterns_AI <- "\\bAI\\b|\\bAI-|ChatGPT|OpenAI|Generative AI|\\bLLM\\b|\\bLLMs\\b|Large language models|Chat GPT|GPT-3.5|GPT-4|\\bGPT\\b"
 
@@ -66,20 +63,7 @@ my_data_ai2 = my_data_ai2 %>%
   mutate(journal = factor(journal))
 levels(my_data_ai2$journal)
 
-my_data_control_AI = my_data_control_AI %>% 
-  mutate(journal = factor(journal))
-levels(my_data_control_AI$journal)
 
-my_data_control_sliced_AI = my_data_control_AI %>% 
-  slice_sample(n = nrow(my_data_ai2)) %>% 
-  arrange(article_date)
-
-my_data_control_sliced_AI %>% 
-ggplot()+
-  aes(x = article_date, y = acceptance_delay) %>% 
-  geom_point()+
-  aes(x = article_date, y = acceptance_delay)+
-  geom_smooth()
 
 my_data_ai2 %>% 
   ggplot()+
@@ -88,13 +72,10 @@ my_data_ai2 %>%
   aes(x = article_date, y = acceptance_delay)+
   geom_smooth()
 
-t.test(my_data_ai2$acceptance_delay, my_data_control_sliced$acceptance_delay)
-t.test(my_data_ai2$publication_delay, my_data_control_sliced$publication_delay)
-
 
 patterns_elections = "\\b2016 election|2016 presidential election|us 2016 election|
 u\\.s\\. 2016 election|2016 us presidential|2016 u\\.s\\. presidential|Donald Trump|left wing|right wing|parties|
-voting|Donald J. Trump|president|presidential|political|politician|American election|United States election|US election"
+voting|Donald J. Trump|president|presidential|American election|United States election|US election|republican|democratic party|democrats|US economy|American econom|\\bTrump\\b"
 threshold_elections = as.Date("2020-01-01")
 threshol_elections_upper = as.Date("2023-12-31")
 my_data_elections1 <- my_data %>%
@@ -122,21 +103,10 @@ my_data_control_elections <- my_data %>%
   semi_join(my_data_elections2, by = "asjc") %>% 
   filter(!(str_detect(title, regex(patterns_elections, ignore_case = TRUE)) |str_detect(keywords, regex(patterns_elections, ignore_case = TRUE))))
 
-my_data_elections2 = my_data_elections2 %>% 
-  mutate(journal = factor(journal))
-levels(my_data_elections2$journal)
-
-my_data_control_elections= my_data_control_elections %>% 
-  mutate(journal = factor(journal))
-levels(my_data_control_elections$journal)
 
 my_data_control_elections_sliced = my_data_control_elections %>% 
   slice_sample(n = nrow(my_data_elections2)) %>% 
   arrange(article_date)
-
-t.test(my_data_elections2$acceptance_delay, my_data_control_elections_sliced$acceptance_delay)
-t.test(my_data_elections2$publication_delay, my_data_control_elections_sliced$publication_delay)
-
 
 patterns_COVID <- "COVID-19|Covid19|\\bCovid\\b|Coronavirus|Corona virus|SARS-CoV-2|\\bSARS\\b|SARS-CoV|2019-ncov"
 
@@ -175,35 +145,14 @@ my_data_control_covid = my_data %>%
              str_detect(keywords, regex(patterns_COVID, ignore_case = TRUE))
   ))
 
-my_data_covid2 = my_data_covid2 %>%
-  mutate(journal = factor(journal))
-levels(my_data_covid2$journal)
-
-my_data_control_covid = my_data_control_covid %>%
-  mutate(journal = factor(journal))
-levels(my_data_control_covid$journal)
-
-
-my_data_control_covid_sliced = my_data_control_covid %>% 
-  slice_sample(n = nrow(my_data_covid2)) %>%
-  arrange(article_date)
-
-my_data_control_covid_sliced %>%
-  ggplot(aes(x = article_date, y = acceptance_delay)) +
-  geom_point() +
-  geom_smooth()
 
 my_data_covid2 %>%
   ggplot(aes(x = article_date, y = acceptance_delay)) +
   geom_point() +
   geom_smooth()
 
-t.test(my_data_covid2$acceptance_delay,my_data_control_covid_sliced$acceptance_delay)
-t.test(my_data_covid2$publication_delay,my_data_control_covid_sliced$publication_delay)
 
-
-
-patterns_RUwar <- "Ukrainian-Russian|Russia-Ukraine war|Russo-Ukrainian war|Russian-Ukrainian conflict|Russian conflict|Ukrainian conflict|Russian invasion|Russian war|Ukrainian war|Russian attack|Ukraine|Donbas conflict|Donbas war|Donbas|Luhansk|war in Eastern Ukraine|Russian offensive|Ukrainian offensive|Ukraine humanitarian crisis|Crimea invasion"
+patterns_RUwar <- "Ukrainian-Russian|Russia-Ukraine war|Russo-Ukrainian war|Russian-Ukrainian conflict|Russian conflict|Ukrainian conflict|Russian invasion|Russian war|Ukrainian war|Russian attack|Ukraine|Donbas conflict|Donbas war|Donbas|Luhansk|war in Eastern Ukraine|Russian offensive|Ukrainian offensive|Ukraine humanitarian crisis|Crimea invasion|Russian econom|Ukrainian-|Russia authoritarian|Russian mili|Russian imperial|Russian leader|\\bPutin\\b|Zelensky"
 
 my_data_RUwar1 <- my_data %>%
   filter(
@@ -212,7 +161,8 @@ my_data_RUwar1 <- my_data %>%
   ) %>%
   mutate(
     article_date =as.Date(article_date)
-  )
+  ) %>% 
+  bind_rows(my_data %>% filter(X == 92824| X == 113224|X == 127130| X == 100514| X == 81171))
 
 threshold_RUwar_start <- as.Date("2022-02-24")
 threshold_RUwar_end <- max(my_data$article_date, na.rm = TRUE)
@@ -240,30 +190,10 @@ my_data_control_RUwar = my_data %>%
              str_detect(keywords, regex(patterns_RUwar, ignore_case = TRUE))
   ))
 
-my_data_RUwar2 = my_data_RUwar2 %>%
-  mutate(journal = factor(journal))
-levels(my_data_RUwar2$journal)
-
-my_data_control_RUwar = my_data_control_RUwar %>%
-  mutate(journal = factor(journal))
-levels(my_data_control_RUwar$journal)
-
-my_data_control_RUwar_sliced = my_data_control_RUwar %>% 
-  slice_sample(n = nrow(my_data_RUwar2)) %>%
-  arrange(article_date)
-
-my_data_control_RUwar_sliced %>%
-  ggplot(aes(x = article_date, y = acceptance_delay)) +
-  geom_point() +
-  geom_smooth()
-
 my_data_RUwar2 %>%
   ggplot(aes(x = article_date, y = acceptance_delay)) +
   geom_point() +
   geom_smooth()
-
-t.test(my_data_RUwar2$acceptance_delay,my_data_control_RUwar_sliced$acceptance_delay)
-t.test(my_data_RUwar2$publication_delay,my_data_control_RUwar_sliced$publication_delay)
 
 
 
@@ -497,37 +427,6 @@ ggplot(dates_bound, aes(x = as.numeric(article_date), color = source, fill = sou
 
 library(dplyr)
 
-date_bounds_IQR <- function(df, col = "article_date") {
-  numeric_dates <- as.numeric(df[[col]])
-  
-  # Compute Q1 and Q3 in numeric form
-  Q1 <- quantile(numeric_dates, 0.25, na.rm = TRUE)
-  Q3 <- quantile(numeric_dates, 0.75, na.rm = TRUE)
-  IQR_val <- Q3 - Q1
-  
-  # Compute fences in numeric form
-  lower_fence <- Q1 - 1.5 * IQR_val
-  upper_fence <- Q3 + 1.5 * IQR_val
-  
-  # Convert back to Date
-  data.frame(
-    lower_fence = as.Date(lower_fence, origin = "1970-01-01"),
-    Q1 = as.Date(Q1, origin = "1970-01-01"),
-    Q3 = as.Date(Q3, origin = "1970-01-01"),
-    upper_fence = as.Date(upper_fence, origin = "1970-01-01")
-  )
-}
-IQR = as.
-# Compute IQR-based bounds for each dataset
-date_bounds_IQR_ai        <- date_bounds_IQR(df_ai_articled)
-date_bounds_IQR_elections <- date_bounds_IQR(df_elections_articled)
-date_bounds_IQR_covid     <- date_bounds_IQR(df_covid_articled)
-date_bounds_IQR_RUwar     <- date_bounds_IQR(df_ruwar_articled)
-
-date_bounds_IQR_ai
-date_bounds_IQR_elections
-date_bounds_IQR_covid
-date_bounds_IQR_RUwar
 
 
 "Massed effect"
@@ -636,7 +535,3 @@ ggplot(boot_means_combined_nocovid, aes(x = mean_acceptance_delay)) +
   theme_minimal()
   
 
-"A COVID-nál és az AI-nál múködne az IQR/középső 95%-os szűrés, viszont a 
-másik kettő esetben interferencia van a beválogatásnál.
-  1. Az election-nél rengeteg cikk kezd el megjelenni a témában a következő választásoknál --> nézhetnénk azt is
-  2. Az orosz - ukránnál nem tudunk jól szűrni --> ezen keresőszavak alapján 2021 és 2023 vége között hasonló gyakorisággal jönnek a cikkek a témában"
