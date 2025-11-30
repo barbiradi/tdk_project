@@ -8,7 +8,7 @@ library(readr)
 library(readxl)
 library(stringr)
 library(ggplot2)
-my_data = read_excel("C:/ELTE_ST/Additional research activity/TDK/tdk_project/tdk_data_cleaned.xlsx", sheet = 1)
+my_data = read.csv("C:/ELTE_ST/Additional research activity/TDK/tdk_project/tdk_data.csv")
 my_data <- read.csv("tdk_data.csv")
 
 my_data = my_data %>% 
@@ -535,3 +535,5 @@ ggplot(boot_means_combined_nocovid, aes(x = mean_acceptance_delay)) +
   theme_minimal()
   
 
+t.test(sample_combined$is_retracted, control_combined$is_retracted)
+t.test(sample_combined_nocovid$is_retracted, control_combined_nocovid$is_retracted)
