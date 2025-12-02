@@ -40,7 +40,7 @@ my_data_ai1 = my_data %>%
   mutate(article_date = as.Date(article_date))
 
 
-threshold_AI <- as.Date("2022-11-30") + median(my_data$acceptance_delay)
+threshold_AI <- as.Date("2022-11-30")
 
 my_data_ai2 = my_data%>% 
   filter(
@@ -73,40 +73,6 @@ my_data_ai2 %>%
   geom_smooth()
 
 
-patterns_elections = "\\b2016 election|2016 presidential election|us 2016 election|
-u\\.s\\. 2016 election|2016 us presidential|2016 u\\.s\\. presidential|Donald Trump|left wing|right wing|parties|
-voting|Donald J. Trump|president|presidential|American election|United States election|US election|republican|democratic party|democrats|US economy|American econom|\\bTrump\\b"
-threshold_elections = as.Date("2020-01-01")
-threshol_elections_upper = as.Date("2023-12-31")
-my_data_elections1 <- my_data %>%
-  filter(
-    str_detect(title, regex(patterns_elections, ignore_case = TRUE)) |
-      str_detect(keywords, regex(patterns_elections, ignore_case = TRUE))
-  ) %>% 
-  mutate(article_date = as.Date(article_date))
-  
-
-my_data_elections2 <- my_data %>% 
-  filter(
-    str_detect(title, regex(patterns_elections, ignore_case = TRUE)) |
-      str_detect(keywords, regex(patterns_elections, ignore_case = TRUE))
-  ) %>%
-  mutate(article_date = as.Date(article_date)) %>%
-  filter(article_date < threshold_elections)
-  
-
-
-
-my_data_control_elections <- my_data %>%
-  mutate(article_date = as.Date(article_date)) %>%
-  filter(article_date < threshold_elections) %>% 
-  semi_join(my_data_elections2, by = "asjc") %>% 
-  filter(!(str_detect(title, regex(patterns_elections, ignore_case = TRUE)) |str_detect(keywords, regex(patterns_elections, ignore_case = TRUE))))
-
-
-my_data_control_elections_sliced = my_data_control_elections %>% 
-  slice_sample(n = nrow(my_data_elections2)) %>% 
-  arrange(article_date)
 
 patterns_COVID <- "COVID-19|Covid19|\\bCovid\\b|Coronavirus|Corona virus|SARS-CoV-2|\\bSARS\\b|SARS-CoV|2019-ncov"
 
@@ -198,13 +164,8 @@ my_data_RUwar2 %>%
 
 
 "Elemzes"
-shapiro.test(my_data_ai2$acceptance_delay)
-shapiro.test(my_data_elections2$acceptance_delay)
-
 summary(my_data_ai2$acceptance_delay)
 sd(my_data_ai2$acceptance_delay)
-summary(my_data_elections2$acceptance_delay)
-sd(my_data_elections2$acceptance_delay)
 
 summary(my_data_covid2$acceptance_delay)
 sd(my_data_covid2$acceptance_delay)
@@ -243,23 +204,6 @@ ci_AI <- quantile(boot_means_df_AI$mean_acceptance_delay,
 ci_AI
 mean(my_data_ai2$acceptance_delay)
 
-
-
-"bootstrap elections"
-boot_samples_election <- replicate(1000,
-                             my_data_control_elections[sample(1:nrow(my_data_control_elections), nrow(my_data_elections2), replace = TRUE), ],
-                             simplify = FALSE
-)
-
-
-boot_means_df_election <- data.frame(
-  bootstrap_id = 1:length(boot_samples_election),
-  mean_acceptance_delay = sapply(boot_samples_election, \(df) mean(df$acceptance_delay, na.rm = TRUE))
-)
-ci_election <- quantile(boot_means_df_election$mean_acceptance_delay,
-                  probs = c(0.025, 0.975))
-ci_election
-mean(my_data_elections2$acceptance_delay)
 
 
 "bootstrap COVID"
@@ -303,17 +247,6 @@ ggplot(boot_means_df_AI, aes(x = mean_acceptance_delay)) +
   geom_vline(xintercept = ci_AI, color = "red", linetype = "dashed", linewidth = 1) + # 95% CI
   geom_vline(xintercept = mean(my_data_ai2$acceptance_delay), color = "darkgreen", linetype = "solid", size = 1.2) +
   annotate("text", x = mean(my_data_ai2$acceptance_delay), y = max(table(cut(boot_means_df_AI$mean_acceptance_delay, breaks=30))) * 0.9,
-           label = "Sample Mean", color = "darkgreen", angle = 90, vjust = -0.5) +
-  labs(title = "Bootstrap Distribution of Mean Acceptance Delay",
-       x = "Mean Acceptance Delay",
-       y = "Frequency") +
-  theme_minimal()
-
-ggplot(boot_means_df_election, aes(x = mean_acceptance_delay)) +
-  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
-  geom_vline(xintercept = ci_election, color = "red", linetype = "dashed", linewidth = 1) + # 95% CI
-  geom_vline(xintercept = mean(my_data_elections2$acceptance_delay), color = "darkgreen", linetype = "solid", size = 1.2) +
-  annotate("text", x = mean(my_data_elections2$acceptance_delay), y = max(table(cut(boot_means_df_election$mean_acceptance_delay, breaks=30))) * 0.9,
            label = "Sample Mean", color = "darkgreen", angle = 90, vjust = -0.5) +
   labs(title = "Bootstrap Distribution of Mean Acceptance Delay",
        x = "Mean Acceptance Delay",
@@ -378,13 +311,6 @@ date_bounds_AI <- my_data_ai1 %>%
   )
 date_bounds_AI
 
-date_bounds_elections <- my_data_elections1 %>%
-  mutate(date_num = as.numeric(article_date)) %>%
-  summarise(
-    lower = as.Date(quantile(date_num, 0.025, na.rm = TRUE), origin = "1970-01-01"),
-    upper = as.Date(quantile(date_num, 0.975, na.rm = TRUE), origin = "1970-01-01")
-  )
-date_bounds_elections
 
 date_bounds_covid <- my_data_covid1 %>%
   mutate(date_num = as.numeric(article_date)) %>%
@@ -402,15 +328,14 @@ date_bounds_RUwar <- my_data_RUwar1 %>%
   )
 date_bounds_RUwar
 
-ci_bound = bind_rows(ci_AI, ci_election, ci_covid, ci_RUwar) %>% 
-  add_column(Téma = c("AI", "Választások", "COVID-19", "Orosz-ukrán konfliktus"))
+ci_bound = bind_rows(ci_AI, ci_covid, ci_RUwar) %>% 
+  add_column(Téma = c("AI", "COVID-19", "Orosz-ukrán konfliktus"))
 
 df_ai_articled        <- my_data_ai1        %>% select(article_date) %>% mutate(source = "AI")
-df_elections_articled <- my_data_elections1 %>% select(article_date) %>% mutate(source = "Elections")
 df_covid_articled     <- my_data_covid1     %>% select(article_date) %>% mutate(source = "COVID")
 df_ruwar_articled     <- my_data_RUwar1     %>% select(article_date) %>% mutate(source = "RUwar")
 
-dates_bound <- bind_rows(df_ai_articled, df_elections_articled, df_covid_articled, df_ruwar_articled)
+dates_bound <- bind_rows(df_ai_articled, df_covid_articled, df_ruwar_articled)
 
 "Density plot"
 ggplot(dates_bound, aes(x = as.numeric(article_date), color = source, fill = source)) +
@@ -423,14 +348,16 @@ ggplot(dates_bound, aes(x = as.numeric(article_date), color = source, fill = sou
     title = "Density of Article Dates by Dataset",
     y = "Density"
   ) +
+  facet_wrap(~source)+
   theme_minimal()
+
 
 library(dplyr)
 
 
 
 "Massed effect"
-sample_combined = bind_rows(my_data_ai2, my_data_elections2, my_data_covid2, my_data_RUwar2) %>% 
+sample_combined = bind_rows(my_data_ai2, my_data_covid2, my_data_RUwar2) %>% 
   distinct() %>% 
   arrange(article_date) 
 
@@ -448,8 +375,6 @@ control_combined = my_data %>%
   )) %>% 
   filter(!(str_detect(title, regex(patterns_AI,ignore_case = TRUE)) |
              str_detect(keywords, regex(patterns_AI,ignore_case = TRUE)))) %>% 
-  filter(!(str_detect(title, regex(patterns_elections,ignore_case = TRUE)) |
-             str_detect(keywords, regex(patterns_elections,ignore_case = TRUE)))) %>% 
   filter(!(str_detect(title, regex(patterns_RUwar,ignore_case = TRUE)) |
              str_detect(keywords, regex(patterns_RUwar,ignore_case = TRUE)))) %>% 
   distinct() %>% 
@@ -489,14 +414,12 @@ ggplot(boot_means_combined, aes(x = mean_acceptance_delay)) +
   theme_minimal()
 
 
-sample_combined_nocovid = bind_rows(my_data_ai2, my_data_elections2, my_data_RUwar2)
+sample_combined_nocovid = bind_rows(my_data_ai2, my_data_RUwar2)
 
 control_combined_nocovid = my_data %>% 
   semi_join(sample_combined, by = "asjc") %>% 
   filter(!(str_detect(title, regex(patterns_AI,ignore_case = TRUE)) |
              str_detect(keywords, regex(patterns_AI,ignore_case = TRUE)))) %>% 
-  filter(!(str_detect(title, regex(patterns_elections,ignore_case = TRUE)) |
-             str_detect(keywords, regex(patterns_elections,ignore_case = TRUE)))) %>% 
   filter(!(str_detect(title, regex(patterns_RUwar,ignore_case = TRUE)) |
              str_detect(keywords, regex(patterns_RUwar,ignore_case = TRUE)))) %>% 
   distinct() %>% 
