@@ -117,6 +117,9 @@ my_data_covid2 %>%
   geom_point() +
   geom_smooth()
 
+my_data_covid2 = my_data_covid2 %>% 
+  mutate(journal = factor(journal))
+levels(my_data_covid2$journal)
 
 patterns_RUwar <- "Ukrainian-Russian|Russia-Ukraine war|Russo-Ukrainian war|Russian-Ukrainian conflict|Russian conflict|Ukrainian conflict|Russian invasion|Russian war|Ukrainian war|Russian attack|Ukraine|Donbas conflict|Donbas war|Donbas|Luhansk|war in Eastern Ukraine|Russian offensive|Ukrainian offensive|Ukraine humanitarian crisis|Crimea invasion|Russian econom|Ukrainian-|Russia authoritarian|Russian mili|Russian imperial|Russian leader|\\bPutin\\b|Zelensky"
 
@@ -243,7 +246,7 @@ mean(my_data_RUwar2$acceptance_delay)
 
 
 ggplot(boot_means_df_AI, aes(x = mean_acceptance_delay)) +
-  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_histogram(bins = 60, fill = "skyblue", color = "black", alpha = 0.7) +
   geom_vline(xintercept = ci_AI, color = "red", linetype = "dashed", linewidth = 1) + # 95% CI
   geom_vline(xintercept = mean(my_data_ai2$acceptance_delay), color = "darkgreen", linetype = "solid", size = 1.2) +
   annotate("text", x = mean(my_data_ai2$acceptance_delay), y = max(table(cut(boot_means_df_AI$mean_acceptance_delay, breaks=30))) * 0.9,
@@ -254,7 +257,7 @@ ggplot(boot_means_df_AI, aes(x = mean_acceptance_delay)) +
   theme_minimal()
 
 ggplot(boot_means_covid_sample, aes(x = mean_acceptance_delay)) +
-  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_histogram(bins = 60, fill = "skyblue", color = "black", alpha = 0.7) +
   geom_vline(xintercept = ci_covid, color = "red", linetype = "dashed", linewidth = 1) +
   geom_vline(xintercept = mean(my_data_covid2$acceptance_delay),
              color = "darkgreen", linetype = "solid", size = 1.2) +
@@ -269,9 +272,9 @@ ggplot(boot_means_covid_sample, aes(x = mean_acceptance_delay)) +
        x = "Mean Acceptance Delay",
        y = "Frequency") +
   theme_minimal()
-
+range(boot_means_RUwar$mean_acceptance_delay)
 ggplot(boot_means_RUwar, aes(x = mean_acceptance_delay)) +
-  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_histogram (bins = 60, fill = "skyblue", color = "black", alpha = 0.7) +
   geom_vline(xintercept = ci_RUwar, color = "red", linetype = "dashed", linewidth = 1) +
   geom_vline(xintercept = mean(my_data_RUwar2$acceptance_delay),
              color = "darkgreen", linetype = "solid", size = 1.2) +
@@ -286,6 +289,7 @@ ggplot(boot_means_RUwar, aes(x = mean_acceptance_delay)) +
        x = "Mean Acceptance Delay",
        y = "Frequency") +
   theme_minimal()
+
 
 my_data_ai1 %>% 
   ggplot()+
@@ -348,13 +352,30 @@ ggplot(dates_bound, aes(x = as.numeric(article_date), color = source, fill = sou
     title = "Density of Article Dates by Dataset",
     y = "Density"
   ) +
-  facet_wrap(~source)+
+  theme_minimal()
+install.packages("ggridges")
+library(ggridges)
+
+ggplot(dates_bound, 
+       aes(x = as.numeric(article_date),
+           y = source,
+           fill = source)) +
+  geom_density_ridges(alpha = 0.6, color = "white") +
+  scale_x_continuous(
+    name = "Megjelenés dátuma",
+    labels = function(x) as.Date(x, origin = "1970-01-01")
+  ) +
+  labs(
+    title = "Cikkek megjelenésének időpontjai témánként",
+    y = "Téma",
+    fill = "Téma"
+  ) +
   theme_minimal()
 
 
 library(dplyr)
 
-
+levels(my_data_covid2$journal)
 
 "Massed effect"
 sample_combined = bind_rows(my_data_ai2, my_data_covid2, my_data_RUwar2) %>% 
@@ -460,3 +481,99 @@ ggplot(boot_means_combined_nocovid, aes(x = mean_acceptance_delay)) +
 
 t.test(sample_combined$is_retracted, control_combined$is_retracted)
 t.test(sample_combined_nocovid$is_retracted, control_combined_nocovid$is_retracted)
+
+
+
+"A COVID-19-el foglalkozó cikkek esete speciális, abban a tekintetben,
+hogy számos intézményes törekvés volt arra, hogy a globális krízishelyzetre való
+tekintettel, a témával foglalkozó cikkek kisebb idő alatt kerüljenek elfogadásra, hogy
+minél gyorsabban és minél  transzparensebben közölve legyenek a pandémiával kapcsolatos 
+kutatások eredményei.(Sevryugina & Dicks, 2022) Számos fast-track lektorálást szorgalmazó intézkedés érvénybe lépett, azonban
+ezek elsősorban az egészségtudománnyal, biológiával foglalkozó folyóiratokat és cikkeket érintette (Sevryugina & Dicks, 2022). Következésképpen,
+végeztünk egy elemzést a COVID-19-el kapcsolatos cikkek elfogadási idejére vonatkozóan, az imént említett
+területek kizárásával --> "
+getwd()
+asjc <- read_excel("ASJC1.xlsx")
+
+asjc_grouped = asjc %>% 
+  filter(Code %in% my_data_grouped$asjc)
+
+asjc_fasstrack = asjc_grouped %>% 
+  filter(!str_detect(Description, regex("Psychology|Health"))) %>% 
+  mutate(Code = as.character(Code))
+
+asjc_filtered = asjc_grouped %>% 
+  filter(str_detect(Description, regex("Psychology|Health"))) %>% 
+  mutate(Code = as.character(Code))
+
+patterns_asjc = "3200|3201|3202|3203|3204|3205|3206|3207|3306"
+my_data_covid1_nops <- my_data %>%
+  filter(
+    str_detect(title,regex(patterns_COVID,ignore_case = TRUE)) |
+      str_detect(keywords,regex(patterns_COVID,ignore_case = TRUE))
+  ) %>%
+  mutate(
+    article_date =as.Date(article_date)
+  ) %>% 
+  filter(!str_detect(asjc, regex(patterns_asjc)))
+
+my_data_covid2_nops <- my_data %>%
+  filter(
+    str_detect(title,regex(patterns_COVID,ignore_case = TRUE)) |
+      str_detect(keywords,regex(patterns_COVID,ignore_case = TRUE))
+  ) %>%
+  mutate(
+    article_date =as.Date(article_date)
+  ) %>%
+  filter(
+    article_date >= threshold_covid_start,
+    article_date <= threshold_covid_end
+  ) %>% 
+  filter(!str_detect(asjc, regex(patterns_asjc)))
+
+my_data_control_covid_nops = my_data %>%
+  filter(
+    article_date >= threshold_covid_start,
+    article_date <= threshold_covid_end
+  ) %>%
+  semi_join(my_data_covid2_nops, by= "asjc") %>%
+  filter(!(str_detect(title, regex(patterns_COVID,ignore_case = TRUE)) |
+             str_detect(keywords, regex(patterns_COVID, ignore_case = TRUE))
+  ))
+
+
+boot_samples_COVID_nops <- replicate(1000,
+                                my_data_control_covid_nops[sample(1:nrow(my_data_control_covid_nops), nrow(my_data_covid2_nops), replace = TRUE), ],
+                                simplify = FALSE
+)
+
+
+boot_means_covid_sample_nops <- data.frame(
+  bootstrap_id = 1:length(boot_samples_COVID_nops),
+  mean_acceptance_delay = sapply(boot_samples_COVID_nops, \(df) mean(df$acceptance_delay, na.rm = TRUE))
+)
+
+ci_covid_nops <- quantile(boot_means_covid_sample_nops$mean_acceptance_delay,
+                     probs = c(0.025, 0.975))
+ci_covid_nops
+mean(my_data_covid2_nops$acceptance_delay)
+
+
+ggplot(boot_means_covid_sample_nops, aes(x = mean_acceptance_delay)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = ci_covid_nops, color = "red", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = mean(my_data_covid2_nops$acceptance_delay),
+             color = "darkgreen", linetype = "solid", size = 1.2) +
+  annotate("text",
+           x = mean(my_data_covid2_nops$acceptance_delay),
+           y = max(table(cut(boot_means_covid_sample_nops$mean_acceptance_delay, breaks = 30))) * 0.9,
+           label = "Sample Mean",
+           color = "darkgreen",
+           angle = 90,
+           vjust = -0.5) +
+  labs(title = "Bootstrap Distribution of Mean Acceptance Delay (COVID_nops)",
+       x = "Mean Acceptance Delay",
+       y = "Frequency") +
+  theme_minimal()
+
+my_data
