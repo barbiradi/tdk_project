@@ -250,10 +250,10 @@ ggplot(boot_means_df_AI, aes(x = mean_acceptance_delay)) +
   geom_vline(xintercept = ci_AI, color = "red", linetype = "dashed", linewidth = 1) + # 95% CI
   geom_vline(xintercept = mean(my_data_ai2$acceptance_delay), color = "darkgreen", linetype = "solid", size = 1.2) +
   annotate("text", x = mean(my_data_ai2$acceptance_delay), y = max(table(cut(boot_means_df_AI$mean_acceptance_delay, breaks=30))) * 0.9,
-           label = "Sample Mean", color = "darkgreen", angle = 90, vjust = -0.5) +
-  labs(title = "Bootstrap Distribution of Mean Acceptance Delay",
-       x = "Mean Acceptance Delay",
-       y = "Frequency") +
+           label = "Mintaátlag", color = "darkgreen", angle = 90, vjust = -0.5) +
+  labs(title = "Az átlagos elfogadási késés bootstrap eloszlása",
+       x = "Átlagos elfogadási késés",
+       y = "Bootstrap control adathalmaz gyakoriság") +
   theme_minimal()
 
 ggplot(boot_means_covid_sample, aes(x = mean_acceptance_delay)) +
@@ -479,10 +479,39 @@ ggplot(boot_means_combined_nocovid, aes(x = mean_acceptance_delay)) +
   theme_minimal()
   
 
-t.test(sample_combined$is_retracted, control_combined$is_retracted)
-t.test(sample_combined_nocovid$is_retracted, control_combined_nocovid$is_retracted)
+"A visszavonás a tudomány eszköze arra vonatkozóan, hogy az esetleg torzított eredményeket, 
+hibás eljárást, vagy a nem megfelelő tudományművelés egyéb más megnyilvánulási formáját tartalmazó publikáció jelenlétét jelezze
+a tudományos közösség számára és eltávolítsa a hibás cikket az idézhető tartalmak halmazából (Zheng et al., 2023).
+"
+set.seed(123)
+control_clean <- control_combined$is_retracted
+control_clean <- control_clean[!is.na(control_clean)]
+sample_clean <- sample_combined$is_retracted
+sample_clean <- sample_clean[!is.na(sample_clean)]
+n_sample <- length(sample_clean)
+prop_sample <- mean(sample_clean)
+
+iterations <- 10000
+mc <- replicate(iterations, {
+  s <- sample(control_clean, n_sample, replace = FALSE)
+  mean(s)
+})
+p_value_retraction <- mean(mc >= prop_sample)
+
+p_value_retraction
 
 
+library(ggplot2)
+
+df_plot_montecarlo <- data.frame(mc = mc)
+
+ggplot(df_plot_montecarlo, aes(x = mc)) +
+  geom_histogram(bins = 60, fill = "skyblue", color = "black") +
+  geom_vline(xintercept = prop_sample, color = "red", size = 1.2) +
+  labs(title = "A visszavonási arány Monte Carlo szimuláció alapú null-eloszlása",
+       subtitle = "Piros vonal = Mintában jelenlévő visszavonási arány",
+       x = "Visszavonási arány (szimulált)",
+       y = "Count")
 
 "A COVID-19-el foglalkozó cikkek esete speciális, abban a tekintetben,
 hogy számos intézményes törekvés volt arra, hogy a globális krízishelyzetre való
@@ -577,3 +606,4 @@ ggplot(boot_means_covid_sample_nops, aes(x = mean_acceptance_delay)) +
   theme_minimal()
 
 my_data
+
