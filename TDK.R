@@ -1,5 +1,7 @@
 
 install.packages("rstatix")
+install.packages("ggthemes")
+library(ggthemes)
 library(rstatix)
 library(tidyverse)
 library(dplyr)
@@ -13,6 +15,8 @@ my_data <- read.csv("tdk_data.csv")
 
 my_data = my_data %>% 
   mutate(article_date = as.Date(article_date))
+my_data = my_data %>% 
+  arrange(article_date)
 
 my_data_grouped = my_data %>% 
   group_by(asjc) %>% 
@@ -23,10 +27,6 @@ min(my_data$article_date)
 max(my_data$article_date)
 mean(my_data$acceptance_delay)
 median(my_data$acceptance_delay)
-my_data %>% 
-  ggplot()+
-  aes(x = acceptance_delay)+
-  geom_density()
 
 
 patterns_AI <- "\\bAI\\b|\\bAI-|ChatGPT|OpenAI|Generative AI|\\bLLM\\b|\\bLLMs\\b|Large language models|Chat GPT|GPT-3.5|GPT-4|\\bGPT\\b"
@@ -62,17 +62,6 @@ my_data_control_AI = my_data %>%
 my_data_ai2 = my_data_ai2 %>% 
   mutate(journal = factor(journal))
 levels(my_data_ai2$journal)
-
-
-
-my_data_ai2 %>% 
-  ggplot()+
-  aes(x = article_date, y = acceptance_delay) %>% 
-  geom_point()+
-  aes(x = article_date, y = acceptance_delay)+
-  geom_smooth()
-
-
 
 patterns_COVID <- "COVID-19|Covid19|\\bCovid\\b|Coronavirus|Corona virus|SARS-CoV-2|\\bSARS\\b|SARS-CoV|2019-ncov"
 
@@ -111,11 +100,6 @@ my_data_control_covid = my_data %>%
              str_detect(keywords, regex(patterns_COVID, ignore_case = TRUE))
   ))
 
-
-my_data_covid2 %>%
-  ggplot(aes(x = article_date, y = acceptance_delay)) +
-  geom_point() +
-  geom_smooth()
 
 my_data_covid2 = my_data_covid2 %>% 
   mutate(journal = factor(journal))
@@ -159,12 +143,54 @@ my_data_control_RUwar = my_data %>%
              str_detect(keywords, regex(patterns_RUwar, ignore_case = TRUE))
   ))
 
-my_data_RUwar2 %>%
-  ggplot(aes(x = article_date, y = acceptance_delay)) +
-  geom_point() +
-  geom_smooth()
+"Exploratív vizualizációk"
+library(lubridate)
+library(ggridges)
+my_data_halfyear <- my_data %>%
+  mutate(
+    year = year(article_date),
+    half = if_else(month(article_date) <= 6, 1, 2),
+    halfyear = paste0(year, "/", half)
+  )
 
+df_halfyear <- my_data_halfyear %>%
+  group_by(halfyear) %>%
+  summarise(
+    mean_delay = mean(acceptance_delay, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(halfyear = factor(halfyear, levels = unique(halfyear)))
 
+plot_1 = ggplot(df_halfyear, aes(x = halfyear, y = mean_delay, group = 1)) +
+  geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs"), se = TRUE) +
+  labs(
+    title = "Átlagos elfogadási késés félévenként",
+    x = "Félév",
+    y = "Átlagos elfogadási késés"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    theme_stata())
+ggsave("plot1.jpg", width = 7, height = 4, dpi = 300)
+
+plot_2 = ggplot(dates_bound, 
+       aes(x = as.numeric(article_date),
+           y = source,
+           fill = source)) +
+  geom_density_ridges(alpha = 0.6, color = "white") +
+  scale_x_continuous(
+    name = "Megjelenés dátuma",
+    labels = function(x) as.Date(x, origin = "1970-01-01")
+  ) +
+  labs(
+    title = "Cikkek megjelenésének időpontjai témánként",
+    y = "Téma",
+    fill = "Téma"
+  ) +
+  theme_minimal()
+plot_2
+ggsave("plot_2.jpg", width = 7, height = 6, dpi = 300)
 
 "Elemzes"
 summary(my_data_ai2$acceptance_delay)
@@ -176,18 +202,6 @@ sd(my_data_covid2$acceptance_delay)
 summary(my_data_RUwar2$acceptance_delay)
 sd(my_data_RUwar2$acceptance_delay)
 
-
-
-
-my_data_ai2 %>%
-  ggplot()+
-  aes(x = acceptance_delay)+
-  geom_histogram(binwidth = 5)
-
-my_data_control_AI %>% 
-  ggplot()+
-  aes(x = acceptance_delay)+
-  geom_histogram()
 
 library(boot)
 
@@ -245,18 +259,20 @@ mean(my_data_RUwar2$acceptance_delay)
 
 
 
-ggplot(boot_means_df_AI, aes(x = mean_acceptance_delay)) +
+plot_3 = ggplot(boot_means_df_AI, aes(x = mean_acceptance_delay)) +
   geom_histogram(bins = 60, fill = "skyblue", color = "black", alpha = 0.7) +
   geom_vline(xintercept = ci_AI, color = "red", linetype = "dashed", linewidth = 1) + # 95% CI
   geom_vline(xintercept = mean(my_data_ai2$acceptance_delay), color = "darkgreen", linetype = "solid", size = 1.2) +
   annotate("text", x = mean(my_data_ai2$acceptance_delay), y = max(table(cut(boot_means_df_AI$mean_acceptance_delay, breaks=30))) * 0.9,
            label = "Mintaátlag", color = "darkgreen", angle = 90, vjust = -0.5) +
-  labs(title = "Az átlagos elfogadási késés bootstrap eloszlása",
-       x = "Átlagos elfogadási késés",
-       y = "Bootstrap control adathalmaz gyakoriság") +
-  theme_minimal()
+  labs(title = "Az átlagos elfogadási késés bootstrap eloszlása (AI)",
+       x = "Átlagos elfogadási késés") +
+  theme_stata()
+plot_3
 
-ggplot(boot_means_covid_sample, aes(x = mean_acceptance_delay)) +
+ggsave("plot_3.jpg", width = 8, height = 8, dpi = 300)
+
+plot_4 = ggplot(boot_means_covid_sample, aes(x = mean_acceptance_delay)) +
   geom_histogram(bins = 60, fill = "skyblue", color = "black", alpha = 0.7) +
   geom_vline(xintercept = ci_covid, color = "red", linetype = "dashed", linewidth = 1) +
   geom_vline(xintercept = mean(my_data_covid2$acceptance_delay),
@@ -264,16 +280,17 @@ ggplot(boot_means_covid_sample, aes(x = mean_acceptance_delay)) +
   annotate("text",
            x = mean(my_data_covid2$acceptance_delay),
            y = max(table(cut(boot_means_covid_sample$mean_acceptance_delay, breaks = 30))) * 0.9,
-           label = "Sample Mean",
+           label = "Mintaátlag",
            color = "darkgreen",
            angle = 90,
            vjust = -0.5) +
-  labs(title = "Bootstrap Distribution of Mean Acceptance Delay (COVID)",
-       x = "Mean Acceptance Delay",
-       y = "Frequency") +
-  theme_minimal()
-range(boot_means_RUwar$mean_acceptance_delay)
-ggplot(boot_means_RUwar, aes(x = mean_acceptance_delay)) +
+  labs(title = "Az átlagos elfogadási késés bootstrap eloszlása (COVID)",
+       x = "Átlagos elfogadási késés", y = "Előfordulási gyakoriság")+
+  theme_stata()
+plot_4
+ggsave("plot_4.jpg", width = 8, height = 8, dpi = 300)
+
+plot_5 = ggplot(boot_means_RUwar, aes(x = mean_acceptance_delay)) +
   geom_histogram (bins = 60, fill = "skyblue", color = "black", alpha = 0.7) +
   geom_vline(xintercept = ci_RUwar, color = "red", linetype = "dashed", linewidth = 1) +
   geom_vline(xintercept = mean(my_data_RUwar2$acceptance_delay),
@@ -281,30 +298,16 @@ ggplot(boot_means_RUwar, aes(x = mean_acceptance_delay)) +
   annotate("text",
            x = mean(my_data_RUwar2$acceptance_delay),
            y = max(table(cut(boot_means_RUwar$mean_acceptance_delay, breaks = 30))) * 0.9,
-           label = "Sample Mean",
+           label = "Mintaátlag",
            color = "darkgreen",
            angle = 90,
            vjust = -0.5) +
-  labs(title = "Bootstrap Distribution of Mean Acceptance Delay (RU War)",
-       x = "Mean Acceptance Delay",
-       y = "Frequency") +
-  theme_minimal()
-
-
-my_data_ai1 %>% 
-  ggplot()+
-  aes(x = article_date,  )+
-  geom_histogram()
-
-my_data_covid1 %>% 
-  ggplot()+
-  aes(x = article_date,  )+
-  geom_histogram()
-
-my_data_RUwar1 %>% 
-  ggplot()+
-  aes(x = article_date,  )+
-  geom_histogram()
+  labs(title = "Az átlagos elfogadási késés bootstrap eloszlása (RU War)",
+       x = "Átlagos elfogadási késés",
+       y = "Előfordulási gyakoriság") +
+  theme_stata()
+plot_5
+ggsave("plot_5.jpg", width = 8, height = 8, dpi = 300)
 
 
 date_bounds_AI <- my_data_ai1 %>%
@@ -341,148 +344,27 @@ df_ruwar_articled     <- my_data_RUwar1     %>% select(article_date) %>% mutate(
 
 dates_bound <- bind_rows(df_ai_articled, df_covid_articled, df_ruwar_articled)
 
-"Density plot"
-ggplot(dates_bound, aes(x = as.numeric(article_date), color = source, fill = source)) +
-  geom_density(alpha = 0.3, na.rm = TRUE) +
-  scale_x_continuous(
-    name = "Article Date",
-    labels = function(x) as.Date(x, origin = "1970-01-01")
-  ) +
-  labs(
-    title = "Density of Article Dates by Dataset",
-    y = "Density"
-  ) +
-  theme_minimal()
-install.packages("ggridges")
-library(ggridges)
 
-ggplot(dates_bound, 
-       aes(x = as.numeric(article_date),
-           y = source,
-           fill = source)) +
-  geom_density_ridges(alpha = 0.6, color = "white") +
-  scale_x_continuous(
-    name = "Megjelenés dátuma",
-    labels = function(x) as.Date(x, origin = "1970-01-01")
-  ) +
-  labs(
-    title = "Cikkek megjelenésének időpontjai témánként",
-    y = "Téma",
-    fill = "Téma"
-  ) +
-  theme_minimal()
-
-
-library(dplyr)
-
-levels(my_data_covid2$journal)
-
-"Massed effect"
+"A visszavonás a tudomány eszköze arra vonatkozóan, hogy az esetleg torzított eredményeket, 
+hibás eljárást, vagy a nem megfelelő tudományművelés egyéb más megnyilvánulási formáját tartalmazó publikáció jelenlétét jelezze
+a tudományos közösség számára és eltávolítsa a hibás cikket az idézhető tartalmak halmazából (Zheng et al., 2023).
+"
 sample_combined = bind_rows(my_data_ai2, my_data_covid2, my_data_RUwar2) %>% 
   distinct() %>% 
   arrange(article_date) 
 
-date_bounds_massed = sample_combined %>% 
-  mutate(date_num = as.numeric(article_date)) %>%
-  summarise(
-    lower = as.Date(quantile(date_num, 0.025, na.rm = TRUE), origin = "1970-01-01"),
-    upper = as.Date(quantile(date_num, 0.975, na.rm = TRUE), origin = "1970-01-01")
-  )
-
 control_combined = my_data %>% 
   semi_join(sample_combined, by = "asjc") %>% 
   filter(!(str_detect(title, regex(patterns_COVID,ignore_case = TRUE)) |
-                      str_detect(keywords, regex(patterns_COVID,ignore_case = TRUE))
+             str_detect(keywords, regex(patterns_COVID,ignore_case = TRUE))
   )) %>% 
   filter(!(str_detect(title, regex(patterns_AI,ignore_case = TRUE)) |
              str_detect(keywords, regex(patterns_AI,ignore_case = TRUE)))) %>% 
   filter(!(str_detect(title, regex(patterns_RUwar,ignore_case = TRUE)) |
              str_detect(keywords, regex(patterns_RUwar,ignore_case = TRUE)))) %>% 
   distinct() %>% 
-  
-  arrange(article_date)
 
-boot_samples_combined <- replicate(1000,
-                                control_combined[sample(1:nrow(control_combined), nrow(sample_combined), replace = TRUE), ],
-                                simplify = FALSE
-)
-
-
-boot_means_combined <- data.frame(
-  bootstrap_id = 1:length(boot_samples_combined),
-  mean_acceptance_delay = sapply(boot_samples_combined, \(df) mean(df$acceptance_delay, na.rm = TRUE))
-)
-ci_combined <- quantile(boot_means_combined$mean_acceptance_delay,
-                     probs = c(0.025, 0.975))
-ci_combined
-mean(sample_combined$acceptance_delay)
-  
-ggplot(boot_means_combined, aes(x = mean_acceptance_delay)) +
-  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
-  geom_vline(xintercept = ci_combined, color = "red", linetype = "dashed", linewidth = 1) +
-  geom_vline(xintercept = mean(sample_combined$acceptance_delay),
-             color = "darkgreen", linetype = "solid", size = 1.2) +
-  annotate("text",
-           x = mean(sample_combined$acceptance_delay),
-           y = max(table(cut(boot_means_combined$mean_acceptance_delay, breaks = 30))) * 0.9,
-           label = "Sample Mean",
-           color = "darkgreen",
-           angle = 90,
-           vjust = -0.5) +
-  labs(title = "Bootstrap Distribution of Mean Acceptance Delay (combined)",
-       x = "Mean Acceptance Delay",
-       y = "Frequency") +
-  theme_minimal()
-
-
-sample_combined_nocovid = bind_rows(my_data_ai2, my_data_RUwar2)
-
-control_combined_nocovid = my_data %>% 
-  semi_join(sample_combined, by = "asjc") %>% 
-  filter(!(str_detect(title, regex(patterns_AI,ignore_case = TRUE)) |
-             str_detect(keywords, regex(patterns_AI,ignore_case = TRUE)))) %>% 
-  filter(!(str_detect(title, regex(patterns_RUwar,ignore_case = TRUE)) |
-             str_detect(keywords, regex(patterns_RUwar,ignore_case = TRUE)))) %>% 
-  distinct() %>% 
-  arrange(article_date)
-
-boot_samples_combined_nocovid <- replicate(1000,
-                                   control_combined_nocovid[sample(1:nrow(control_combined_nocovid), nrow(sample_combined_nocovid), replace = TRUE), ],
-                                   simplify = FALSE
-)
-
-
-boot_means_combined_nocovid <- data.frame(
-  bootstrap_id = 1:length(boot_samples_combined_nocovid),
-  mean_acceptance_delay = sapply(boot_samples_combined_nocovid, \(df) mean(df$acceptance_delay, na.rm = TRUE))
-)
-ci_combined_nocovid <- quantile(boot_means_combined_nocovid$mean_acceptance_delay,
-                        probs = c(0.025, 0.975))
-ci_combined_nocovid
-mean(sample_combined$acceptance_delay)
-
-ggplot(boot_means_combined_nocovid, aes(x = mean_acceptance_delay)) +
-  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
-  geom_vline(xintercept = ci_combined_nocovid, color = "red", linetype = "dashed", linewidth = 1) +
-  geom_vline(xintercept = mean(sample_combined_nocovid$acceptance_delay),
-             color = "darkgreen", linetype = "solid", size = 1.2) +
-  annotate("text",
-           x = mean(sample_combined_nocovid$acceptance_delay),
-           y = max(table(cut(boot_means_combined_nocovid$mean_acceptance_delay, breaks = 30))) * 0.9,
-           label = "Sample Mean",
-           color = "darkgreen",
-           angle = 90,
-           vjust = -0.5) +
-  labs(title = "Bootstrap Distribution of Mean Acceptance Delay (combined)",
-       x = "Mean Acceptance Delay",
-       y = "Frequency") +
-  theme_minimal()
-  
-
-"A visszavonás a tudomány eszköze arra vonatkozóan, hogy az esetleg torzított eredményeket, 
-hibás eljárást, vagy a nem megfelelő tudományművelés egyéb más megnyilvánulási formáját tartalmazó publikáció jelenlétét jelezze
-a tudományos közösség számára és eltávolítsa a hibás cikket az idézhető tartalmak halmazából (Zheng et al., 2023).
-"
+    
 set.seed(123)
 control_clean <- control_combined$is_retracted
 control_clean <- control_clean[!is.na(control_clean)]
@@ -500,18 +382,16 @@ p_value_retraction <- mean(mc >= prop_sample)
 
 p_value_retraction
 
-
-library(ggplot2)
-
 df_plot_montecarlo <- data.frame(mc = mc)
 
 ggplot(df_plot_montecarlo, aes(x = mc)) +
   geom_histogram(bins = 60, fill = "skyblue", color = "black") +
   geom_vline(xintercept = prop_sample, color = "red", size = 1.2) +
-  labs(title = "A visszavonási arány Monte Carlo szimuláció alapú null-eloszlása",
+  labs(title = "A visszavonási arány Monte Carlo szimulációjának null-eloszlása",
        subtitle = "Piros vonal = Mintában jelenlévő visszavonási arány",
        x = "Visszavonási arány (szimulált)",
-       y = "Count")
+       y = "Db")+
+  theme(theme_stata())
 
 "A COVID-19-el foglalkozó cikkek esete speciális, abban a tekintetben,
 hogy számos intézményes törekvés volt arra, hogy a globális krízishelyzetre való
@@ -588,7 +468,7 @@ ci_covid_nops
 mean(my_data_covid2_nops$acceptance_delay)
 
 
-ggplot(boot_means_covid_sample_nops, aes(x = mean_acceptance_delay)) +
+plot_6 = ggplot(boot_means_covid_sample_nops, aes(x = mean_acceptance_delay)) +
   geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
   geom_vline(xintercept = ci_covid_nops, color = "red", linetype = "dashed", linewidth = 1) +
   geom_vline(xintercept = mean(my_data_covid2_nops$acceptance_delay),
@@ -596,14 +476,124 @@ ggplot(boot_means_covid_sample_nops, aes(x = mean_acceptance_delay)) +
   annotate("text",
            x = mean(my_data_covid2_nops$acceptance_delay),
            y = max(table(cut(boot_means_covid_sample_nops$mean_acceptance_delay, breaks = 30))) * 0.9,
-           label = "Sample Mean",
+           label = "Mintaátlag",
            color = "darkgreen",
            angle = 90,
            vjust = -0.5) +
-  labs(title = "Bootstrap Distribution of Mean Acceptance Delay (COVID_nops)",
-       x = "Mean Acceptance Delay",
-       y = "Frequency") +
-  theme_minimal()
+  labs(title = " Az átlagos elfogadási késés bootstrap eloszlása (COVID_nops)",
+       x = "Átlagos elfogadási késés",
+       y = "Előfordulási gyakoriság") +
+  theme_stata()
+plot_6
 
-my_data
+ggsave("plot_6.jpg", width = 8, height = 8, dpi = 300)
+"Ezen kívül megnéztük, hogy az összesített elemzés milyen eredményt mutat, ha a COVID-19-et kivesszük teljesen,
+viszont kibővítjük az intervallumát kontrollpopulációknak a másik kettő témában, és összevonjuk a hatást."
 
+sample_combined = bind_rows(my_data_ai2, my_data_covid2, my_data_RUwar2) %>% 
+  distinct() %>% 
+  arrange(article_date) 
+
+date_bounds_massed = sample_combined %>% 
+  mutate(date_num = as.numeric(article_date)) %>%
+  summarise(
+    lower = as.Date(quantile(date_num, 0.025, na.rm = TRUE), origin = "1970-01-01"),
+    upper = as.Date(quantile(date_num, 0.975, na.rm = TRUE), origin = "1970-01-01")
+  )
+
+control_combined = my_data %>% 
+  semi_join(sample_combined, by = "asjc") %>% 
+  filter(!(str_detect(title, regex(patterns_COVID,ignore_case = TRUE)) |
+                      str_detect(keywords, regex(patterns_COVID,ignore_case = TRUE))
+  )) %>% 
+  filter(!(str_detect(title, regex(patterns_AI,ignore_case = TRUE)) |
+             str_detect(keywords, regex(patterns_AI,ignore_case = TRUE)))) %>% 
+  filter(!(str_detect(title, regex(patterns_RUwar,ignore_case = TRUE)) |
+             str_detect(keywords, regex(patterns_RUwar,ignore_case = TRUE)))) %>% 
+  distinct() %>% 
+  
+  arrange(article_date)
+
+boot_samples_combined <- replicate(1000,
+                                control_combined[sample(1:nrow(control_combined), nrow(sample_combined), replace = TRUE), ],
+                                simplify = FALSE
+)
+
+
+sample_combined_nocovid = bind_rows(my_data_ai2, my_data_RUwar2)
+
+control_combined_nocovid = my_data %>% 
+  semi_join(sample_combined, by = "asjc") %>% 
+  filter(!(str_detect(title, regex(patterns_AI,ignore_case = TRUE)) |
+             str_detect(keywords, regex(patterns_AI,ignore_case = TRUE)))) %>% 
+  filter(!(str_detect(title, regex(patterns_RUwar,ignore_case = TRUE)) |
+             str_detect(keywords, regex(patterns_RUwar,ignore_case = TRUE)))) %>% 
+  distinct() %>% 
+  arrange(article_date)
+
+boot_samples_combined_nocovid <- replicate(1000,
+                                   control_combined_nocovid[sample(1:nrow(control_combined_nocovid), nrow(sample_combined_nocovid), replace = TRUE), ],
+                                   simplify = FALSE
+)
+
+
+boot_means_combined_nocovid <- data.frame(
+  bootstrap_id = 1:length(boot_samples_combined_nocovid),
+  mean_acceptance_delay = sapply(boot_samples_combined_nocovid, \(df) mean(df$acceptance_delay, na.rm = TRUE))
+)
+ci_combined_nocovid <- quantile(boot_means_combined_nocovid$mean_acceptance_delay,
+                        probs = c(0.025, 0.975))
+ci_combined_nocovid
+mean(sample_combined$acceptance_delay)
+
+plot_7 = ggplot(boot_means_combined_nocovid, aes(x = mean_acceptance_delay)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = ci_combined_nocovid, color = "red", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = mean(sample_combined_nocovid$acceptance_delay),
+             color = "darkgreen", linetype = "solid", size = 1.2) +
+  annotate("text",
+           x = mean(sample_combined_nocovid$acceptance_delay),
+           y = max(table(cut(boot_means_combined_nocovid$mean_acceptance_delay, breaks = 30))) * 0.9,
+           label = "Mintaátlag",
+           color = "darkgreen",
+           angle = 90,
+           vjust = -0.5) +
+  labs(title = "Az átlagos elfogadási késés bootstrap eloszlás (combined)",
+       x = "Átlagos elfogadási késés",
+       y = "Előfordulási gyakoriság") +
+  theme_stata()
+plot_7
+ggsave("plot_7.jpg", width = 8, height = 8, dpi = 600)
+"A visszavonás a tudomány eszköze arra vonatkozóan, hogy az esetleg torzított eredményeket, 
+hibás eljárást, vagy a nem megfelelő tudományművelés egyéb más megnyilvánulási formáját tartalmazó publikáció jelenlétét jelezze
+a tudományos közösség számára és eltávolítsa a hibás cikket az idézhető tartalmak halmazából (Zheng et al., 2023).
+"
+set.seed(123)
+control_clean <- control_combined$is_retracted
+control_clean <- control_clean[!is.na(control_clean)]
+sample_clean <- sample_combined$is_retracted
+sample_clean <- sample_clean[!is.na(sample_clean)]
+n_sample <- length(sample_clean)
+prop_sample <- mean(sample_clean)
+
+iterations <- 10000
+mc <- replicate(iterations, {
+  s <- sample(control_clean, n_sample, replace = FALSE)
+  mean(s)
+})
+p_value_retraction <- mean(mc >= prop_sample)
+
+p_value_retraction
+
+
+df_plot_montecarlo <- data.frame(mc = mc)
+
+plot_8 = ggplot(df_plot_montecarlo, aes(x = mc)) +
+  geom_histogram(bins = 60, fill = "skyblue", color = "black") +
+  geom_vline(xintercept = prop_sample, color = "red", size = 1.2) +
+  labs(title = "A visszavonási arány Monte Carlo szimulációjának null-eloszlása",
+       subtitle = "Piros vonal = Mintában jelenlévő visszavonási arány",
+       x = "Visszavonási arány (szimulált)",
+       y = "Db")
+plot_8
+ggsave("plot_8.jpg", width = 10, height = 8, dpi = 500)
