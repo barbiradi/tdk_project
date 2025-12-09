@@ -10,6 +10,7 @@ library(readr)
 library(readxl)
 library(stringr)
 library(ggplot2)
+
 my_data = read.csv("C:/ELTE_ST/Additional research activity/TDK/tdk_project/tdk_data.csv")
 my_data <- read.csv("tdk_data.csv")
 
@@ -146,34 +147,31 @@ my_data_control_RUwar = my_data %>%
 "Exploratív vizualizációk"
 library(lubridate)
 library(ggridges)
-my_data_halfyear <- my_data %>%
-  mutate(
-    year = year(article_date),
-    half = if_else(month(article_date) <= 6, 1, 2),
-    halfyear = paste0(year, "/", half)
-  )
-
-df_halfyear <- my_data_halfyear %>%
-  group_by(halfyear) %>%
+install.packages("ggbreak")
+library(ggbreak)
+install.packages("ggplot2")
+library(ggplot2)
+article_date_month <- my_data %>%
+  mutate(article_date_month = floor_date(as.Date(article_date), "month")) %>% 
+  group_by(article_date_month) %>%
   summarise(
     mean_delay = mean(acceptance_delay, na.rm = TRUE),
     .groups = "drop"
-  ) %>%
-  mutate(halfyear = factor(halfyear, levels = unique(halfyear)))
+  )
 
-plot_1 = ggplot(df_halfyear, aes(x = halfyear, y = mean_delay, group = 1)) +
-  geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs"), se = TRUE) +
+plot_1 = ggplot(article_date_month, aes(x = article_date_month, y = mean_delay, group = 1)) +
+  geom_point(color = "darkgreen", size = 2)+
+   geom_smooth(method = "loess", span = 0.35, se = FALSE, color = "red") +
   labs(
-    title = "Átlagos elfogadási késés félévenként",
-    x = "Félév",
+    title = "Átlagos elfogadási késés",
+    x = "Hónap",
     y = "Átlagos elfogadási késés"
   ) +
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1), 
-    theme_stata())
-ggsave("plot1.jpg", width = 7, height = 4, dpi = 300)
+  theme_stata()
 
+
+ggsave("plot1.jpg", width = 7, height = 4, dpi = 300)
+plot_1
 plot_2 = ggplot(dates_bound, 
        aes(x = as.numeric(article_date),
            y = source,
@@ -263,7 +261,7 @@ plot_3 = ggplot(boot_means_df_AI, aes(x = mean_acceptance_delay)) +
   geom_histogram(bins = 60, fill = "skyblue", color = "black", alpha = 0.7) +
   geom_vline(xintercept = ci_AI, color = "red", linetype = "dashed", linewidth = 1) + # 95% CI
   geom_vline(xintercept = mean(my_data_ai2$acceptance_delay), color = "darkgreen", linetype = "solid", size = 1.2) +
-  annotate("text", x = mean(my_data_ai2$acceptance_delay), y = max(table(cut(boot_means_df_AI$mean_acceptance_delay, breaks=30))) * 0.9,
+  annotate("text", x = mean(my_data_ai2$acceptance_delay), y = 15,
            label = "Mintaátlag", color = "darkgreen", angle = 90, vjust = -0.5) +
   labs(title = "Az átlagos elfogadási késés bootstrap eloszlása (AI)",
        x = "Átlagos elfogadási késés") +
@@ -297,7 +295,7 @@ plot_5 = ggplot(boot_means_RUwar, aes(x = mean_acceptance_delay)) +
              color = "darkgreen", linetype = "solid", size = 1.2) +
   annotate("text",
            x = mean(my_data_RUwar2$acceptance_delay),
-           y = max(table(cut(boot_means_RUwar$mean_acceptance_delay, breaks = 30))) * 0.9,
+           y = 15,
            label = "Mintaátlag",
            color = "darkgreen",
            angle = 90,
@@ -364,34 +362,6 @@ control_combined = my_data %>%
              str_detect(keywords, regex(patterns_RUwar,ignore_case = TRUE)))) %>% 
   distinct() %>% 
 
-    
-set.seed(123)
-control_clean <- control_combined$is_retracted
-control_clean <- control_clean[!is.na(control_clean)]
-sample_clean <- sample_combined$is_retracted
-sample_clean <- sample_clean[!is.na(sample_clean)]
-n_sample <- length(sample_clean)
-prop_sample <- mean(sample_clean)
-
-iterations <- 10000
-mc <- replicate(iterations, {
-  s <- sample(control_clean, n_sample, replace = FALSE)
-  mean(s)
-})
-p_value_retraction <- mean(mc >= prop_sample)
-
-p_value_retraction
-
-df_plot_montecarlo <- data.frame(mc = mc)
-
-ggplot(df_plot_montecarlo, aes(x = mc)) +
-  geom_histogram(bins = 60, fill = "skyblue", color = "black") +
-  geom_vline(xintercept = prop_sample, color = "red", size = 1.2) +
-  labs(title = "A visszavonási arány Monte Carlo szimulációjának null-eloszlása",
-       subtitle = "Piros vonal = Mintában jelenlévő visszavonási arány",
-       x = "Visszavonási arány (szimulált)",
-       y = "Db")+
-  theme(theme_stata())
 
 "A COVID-19-el foglalkozó cikkek esete speciális, abban a tekintetben,
 hogy számos intézményes törekvés volt arra, hogy a globális krízishelyzetre való
@@ -475,7 +445,7 @@ plot_6 = ggplot(boot_means_covid_sample_nops, aes(x = mean_acceptance_delay)) +
              color = "darkgreen", linetype = "solid", size = 1.2) +
   annotate("text",
            x = mean(my_data_covid2_nops$acceptance_delay),
-           y = max(table(cut(boot_means_covid_sample_nops$mean_acceptance_delay, breaks = 30))) * 0.9,
+           y = 100,
            label = "Mintaátlag",
            color = "darkgreen",
            angle = 90,
@@ -521,6 +491,7 @@ boot_samples_combined <- replicate(1000,
 
 
 sample_combined_nocovid = bind_rows(my_data_ai2, my_data_RUwar2)
+
 
 control_combined_nocovid = my_data %>% 
   semi_join(sample_combined, by = "asjc") %>% 
@@ -568,32 +539,48 @@ ggsave("plot_7.jpg", width = 8, height = 8, dpi = 600)
 hibás eljárást, vagy a nem megfelelő tudományművelés egyéb más megnyilvánulási formáját tartalmazó publikáció jelenlétét jelezze
 a tudományos közösség számára és eltávolítsa a hibás cikket az idézhető tartalmak halmazából (Zheng et al., 2023).
 "
-set.seed(123)
-control_clean <- control_combined$is_retracted
-control_clean <- control_clean[!is.na(control_clean)]
-sample_clean <- sample_combined$is_retracted
-sample_clean <- sample_clean[!is.na(sample_clean)]
-n_sample <- length(sample_clean)
-prop_sample <- mean(sample_clean)
 
-iterations <- 10000
-mc <- replicate(iterations, {
-  s <- sample(control_clean, n_sample, replace = FALSE)
-  mean(s)
-})
-p_value_retraction <- mean(mc >= prop_sample)
+my_data_sample_retracted = sample_combined %>% 
+  filter(is_retracted == TRUE)
+count(my_data_sample_retracted)/count(sample_combined)
+count(my_data_retracted)/count(my_data)
+my_data_retracted = my_data %>% 
+  filter(is_retracted == TRUE)
+my_data_control_retracted = my_data %>% 
+  semi_join(my_data_retracted, by = "asjc") %>% 
+  filter(!(is_retracted == TRUE))
 
-p_value_retraction
+boot_samples_retracted <- replicate(1000,
+                                my_data_control_retracted[sample(1:nrow(my_data_control_retracted), nrow(my_data_retracted), replace = TRUE), ],
+                                simplify = FALSE
+)
 
 
-df_plot_montecarlo <- data.frame(mc = mc)
-
-plot_8 = ggplot(df_plot_montecarlo, aes(x = mc)) +
-  geom_histogram(bins = 60, fill = "skyblue", color = "black") +
-  geom_vline(xintercept = prop_sample, color = "red", size = 1.2) +
-  labs(title = "A visszavonási arány Monte Carlo szimulációjának null-eloszlása",
-       subtitle = "Piros vonal = Mintában jelenlévő visszavonási arány",
-       x = "Visszavonási arány (szimulált)",
-       y = "Db")
+boot_means_retracted <- data.frame(
+  bootstrap_id = 1:length(boot_samples_retracted),
+  mean_acceptance_delay = sapply(boot_samples_retracted, \(df) mean(df$acceptance_delay, na.rm = TRUE))
+)
+ci_retracted <- quantile(boot_means_retracted$mean_acceptance_delay,
+                          probs = c(0.025, 0.975))
+ci_retracted
+mean(my_data_retracted$acceptance_delay)
+plot_8 = ggplot(boot_means_retracted, aes(x = mean_acceptance_delay)) +
+  geom_histogram(bins = 60, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = ci_retracted, color = "red", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = mean(my_data_retracted$acceptance_delay),
+             color = "darkgreen", linetype = "solid", size = 1.2) +
+  annotate("text",
+           x = mean(my_data_retracted$acceptance_delay),
+           y = 50,
+           label = "Mintaátlag",
+           color = "darkgreen",
+           angle = 90,
+           vjust = -0.5) +
+  labs(title = "Az átlagos elfogadási késés bootstrap eloszlása (is_retracted)",
+       x = "Átlagos elfogadási késés", y = "Előfordulási gyakoriság")+
+  theme_stata()
 plot_8
-ggsave("plot_8.jpg", width = 10, height = 8, dpi = 500)
+ggsave("plot_8.jpg", width = 8, height = 8, dpi = 300)
+
+mean(boot_means_retracted$mean_acceptance_delay)
+mean(my_data_retracted$acceptance_delay)
